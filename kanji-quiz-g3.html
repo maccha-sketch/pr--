@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>かんじ道場 3年生</title>
+<style>
+  :root{
+    --bg1:#fff7e6;
+    --bg2:#e6f7ff;
+    --card:#ffffff;
+    --ink:#3a2e1f;
+    --accent:#ff9f43;
+    --accent-dark:#e07b1a;
+    --blue:#4aa3ff;
+    --green:#3ac569;
+    --red:#ff5d5d;
+    --gray:#8a8a8a;
+    --shadow: 0 6px 0 rgba(0,0,0,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"UD Digi Kyokasho NP-R","Hiragino Maru Gothic ProN","Meiryo",system-ui,sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    min-height:100vh;
+    color:var(--ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    padding:14px 14px 40px;
+  }
+  .screen{display:none;}
+  .screen.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--card); border-radius:18px; padding:10px 16px;
+    box-shadow:var(--shadow); margin-bottom:16px;
+  }
+  .coin{font-weight:bold; font-size:1.2rem; color:var(--accent-dark);}
+  .coin span{font-size:1.4rem;}
+  .charmini{display:flex; align-items:center; gap:6px; font-size:1rem;}
+  .charmini .emoji{font-size:1.8rem;}
+
+  .card{
+    background:var(--card); border-radius:22px; padding:20px;
+    box-shadow:var(--shadow); margin-bottom:16px;
+  }
+  h1{font-size:1.5rem; text-align:center; margin:8px 0 18px;}
+  h2{font-size:1.2rem; margin:0 0 12px;}
+
+  .char-hero{text-align:center; padding:10px 0 6px;}
+  .char-hero .emoji{font-size:5.5rem; display:block; line-height:1;}
+  .char-hero .name{font-size:1.1rem; margin-top:6px; font-weight:bold;}
+  .char-hero .lv{color:var(--gray); font-size:.95rem;}
+
+  .bigbtn{
+    display:block; width:100%; padding:20px; margin:10px 0;
+    font-size:1.4rem; font-weight:bold; color:#fff; border:none;
+    border-radius:20px; background:var(--accent); box-shadow:0 5px 0 var(--accent-dark);
+    cursor:pointer; touch-action:manipulation;
+  }
+  .bigbtn:active{transform:translateY(3px); box-shadow:0 2px 0 var(--accent-dark);}
+  .bigbtn.blue{background:var(--blue); box-shadow:0 5px 0 #2b74c9;}
+  .bigbtn.blue:active{box-shadow:0 2px 0 #2b74c9;}
+  .bigbtn.gray{background:#b9b9b9; box-shadow:0 5px 0 #8f8f8f; font-size:1.05rem; padding:14px;}
+  .bigbtn.gray:active{box-shadow:0 2px 0 #8f8f8f;}
+
+  .progresswrap{display:flex; justify-content:center; gap:6px; margin-bottom:14px;}
+  .dot{width:10px; height:10px; border-radius:50%; background:#ddd;}
+  .dot.done{background:var(--accent);}
+  .dot.now{background:var(--blue);}
+
+  .kanji-display{
+    text-align:center; font-size:clamp(4.5rem,24vw,8rem); font-weight:bold;
+    padding:18px 0; line-height:1;
+  }
+  .quiz-sub{text-align:center; color:var(--gray); margin-bottom:10px; font-size:1rem;}
+
+  .choices{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .choice-btn{
+    padding:18px 6px; font-size:1.3rem; font-weight:bold; border-radius:16px;
+    border:3px solid #e2e2e2; background:#fff; cursor:pointer; touch-action:manipulation;
+    min-height:64px;
+  }
+  .choice-btn:active{transform:scale(.97);}
+  .choice-btn.correct{background:#e3f9ec; border-color:var(--green); color:#1e8a4c;}
+  .choice-btn.wrong{background:#ffe9e9; border-color:var(--red); color:#c73838;}
+  .choice-btn[disabled]{opacity:.85;}
+
+  .feedback{text-align:center; font-size:1.3rem; font-weight:bold; min-height:2.2em; margin-top:10px;}
+  .feedback.ok{color:var(--green);}
+  .feedback.ng{color:var(--red);}
+  .shake{animation:shake .35s;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);}
+    40%{transform:translateX(8px);} 60%{transform:translateX(-6px);} 80%{transform:translateX(6px);}
+  }
+
+  .stat-row{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #eee; font-size:1.05rem;}
+  .stat-row:last-child{border-bottom:none;}
+  .stat-row b{color:var(--accent-dark);}
+
+  table{width:100%; border-collapse:collapse; font-size:.95rem;}
+  th,td{padding:6px 4px; text-align:left; border-bottom:1px solid #eee;}
+  th{color:var(--gray); font-weight:normal;}
+  .scrollbox{max-height:260px; overflow-y:auto; border:1px solid #eee; border-radius:10px; padding:4px 8px; margin-top:8px;}
+
+  .gate-input{
+    width:100%; font-size:2rem; text-align:center; padding:12px; border-radius:14px;
+    border:2px solid #ddd; margin:14px 0; letter-spacing:2px;
+  }
+  .gate-q{text-align:center; font-size:1.6rem; font-weight:bold;}
+  .note{font-size:.85rem; color:var(--gray); line-height:1.5;}
+  .warn-badge{display:inline-block; background:#fff2cc; color:#8a6d00; border-radius:8px; padding:2px 8px; font-size:.8rem; margin-left:4px;}
+  details summary{cursor:pointer; color:var(--blue); font-weight:bold; margin:6px 0;}
+  .center{text-align:center;}
+  .small{font-size:.85rem; color:var(--gray);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= HOME ================= -->
+  <section id="screen-home" class="screen active">
+    <h1>かんじ道場 〜3年生〜</h1>
+
+    <div class="topbar">
+      <div class="coin">🪙 <span id="home-coin">0</span></div>
+      <div class="charmini">
+        <span class="emoji" id="home-char-emoji">🥚</span>
+        <span id="home-char-lv">Lv.1</span>
+      </div>
+    </div>
+
+    <div class="card char-hero">
+      <span class="emoji" id="hero-emoji">🥚</span>
+      <div class="name" id="hero-name">たまご</div>
+      <div class="lv" id="hero-lv">レベル 1</div>
+    </div>
+
+    <div class="card">
+      <button class="bigbtn" onclick="startRound()">クイズをはじめる（10問）</button>
+      <button class="bigbtn blue" onclick="openParentGate()">保護者用メニュー</button>
+    </div>
+
+    <div class="card small">
+      <details>
+        <summary>つかいかた</summary>
+        <p>①「クイズをはじめる」をおして、かんじの読みかたを4つのなかから選んでね。<br>
+        ②正解するとコインがもらえて、キャラクターが育つよ。<br>
+        ③連続で正解すると、もらえるコインが増えるよ！<br>
+        ④成績は自動で保存されるから、次に開いたときも続きから遊べます。</p>
+      </details>
+      <details id="uncertain-details" style="display:none;">
+        <summary>読み方について（保護者の方へ）</summary>
+        <p class="note" id="uncertain-list"></p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= QUIZ ================= -->
+  <section id="screen-quiz" class="screen">
+    <div class="topbar">
+      <div class="coin">🪙 <span id="quiz-coin">0</span></div>
+      <div class="charmini">🔥 <span id="quiz-streak">0</span> れんぞく</div>
+    </div>
+    <div class="progresswrap" id="quiz-progress"></div>
+    <div class="card">
+      <div class="quiz-sub">この かんじの 読みかたは？</div>
+      <div class="kanji-display" id="quiz-kanji">－</div>
+      <div class="choices" id="quiz-choices"></div>
+      <div class="feedback" id="quiz-feedback"></div>
+    </div>
+    <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
+  </section>
+
+  <!-- ================= RESULT ================= -->
+  <section id="screen-result" class="screen">
+    <h1>けっか発表！</h1>
+    <div class="card center">
+      <div style="font-size:3.4rem;" id="result-emoji">🎉</div>
+      <p style="font-size:1.3rem; font-weight:bold;" id="result-msg">よくできました！</p>
+      <div class="stat-row"><span>今回の正解数</span><b id="result-correct">0 / 10</b></div>
+      <div class="stat-row"><span>獲得コイン</span><b id="result-coins">0 枚</b></div>
+      <div class="stat-row"><span>ベスト連続正解</span><b id="result-best">0</b></div>
+    </div>
+    <button class="bigbtn" onclick="startRound()">もういちどクイズする</button>
+    <button class="bigbtn blue" onclick="goHome()">ホームにもどる</button>
+  </section>
+
+  <!-- ================= PARENT GATE ================= -->
+  <section id="screen-parent-gate" class="screen">
+    <h1>保護者の方へ</h1>
+    <div class="card center">
+      <p>お子さまが一人で入れないように、簡単な計算で確認しています。</p>
+      <div class="gate-q" id="gate-question">3 + 4 = ?</div>
+      <input type="tel" inputmode="numeric" class="gate-input" id="gate-answer" placeholder="?">
+      <button class="bigbtn" onclick="checkGate()">決定</button>
+      <p class="feedback ng" id="gate-msg"></p>
+    </div>
+    <button class="bigbtn gray" onclick="goHome()">もどる</button>
+  </section>
+
+  <!-- ================= PARENT DASHBOARD ================= -->
+  <section id="screen-parent" class="screen">
+    <h1>学習レポート</h1>
+    <div class="card">
+      <div class="stat-row"><span>学習した漢字数</span><b id="p-learned">0 / 200</b></div>
+      <div class="stat-row"><span>総回答数</span><b id="p-total">0</b></div>
+      <div class="stat-row"><span>総正解数</span><b id="p-correct">0</b></div>
+      <div class="stat-row"><span>正答率</span><b id="p-rate">-</b></div>
+      <div class="stat-row"><span>直近の学習日</span><b id="p-last">-</b></div>
+      <div class="stat-row"><span>現在のレベル / コイン</span><b id="p-lv">-</b></div>
+    </div>
+
+    <div class="card">
+      <h2>苦手な漢字（間違いが多い順）</h2>
+      <div id="p-weak" class="small">まだデータがありません。</div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>すべての学習履歴を見る</summary>
+        <div class="scrollbox">
+          <table>
+            <thead><tr><th>漢字</th><th>回答</th><th>正解</th><th>間違い</th><th>最終学習日</th></tr></thead>
+            <tbody id="p-all-history"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>読み方データについて</h2>
+      <p class="note" id="p-uncertain-note">-</p>
+    </div>
+
+    <button class="bigbtn blue" onclick="goHome()">閉じる</button>
+    <button class="bigbtn gray" onclick="resetProgress()">学習データをリセットする</button>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================================
+   1. KANJI DATA（データと画面ロジックを分離）
+   -------------------------------------------------------------------------
+   小学3年生配当漢字200字（ユーザー指定の並び順のまま、増減なしで使用）。
+   KANJI_STRING の文字順と READING_TABLE のインデックスは 1対1 で対応する。
+   on  = 音読み（カタカナ）
+   kun = 訓読み（ひらがな。送り仮名の区切りは「.」で表現。例: "あか.るい"）
+   uncertain:true の項目は、読みの妥当性を辞書等で再確認することを推奨する
+   （教育漢字配当表の特殊な読みや名乗り読みに近いもの）。
+   ========================================================================= */
+  const KANJI_STRING =
+    "悪安暗医委意育員院飲運泳駅央横屋温化荷界開階寒感漢館岸起期客究急級宮球去橋業曲局銀区苦具君係軽血決研県庫湖向幸港号根祭皿仕死使始指歯詩次事持式実写者主守取酒受州拾終習集住重宿所暑助昭消商章勝乗植申身神真深進世整昔全相送想息速族他打対待代第題炭短談着注柱丁帳調追定庭笛鉄転都度投豆島湯登等動童農波配倍箱畑発反坂板皮悲美鼻筆氷表秒病品負部服福物平返勉放味命面問役薬由油有遊予羊洋葉陽様落流旅両緑礼列練路和";
+
+  const READING_TABLE = [
+    {on:["アク","オ"], kun:["わる.い"]},                          // 悪
+    {on:["アン"], kun:["やす.い"]},                                // 安
+    {on:["アン"], kun:["くら.い"]},                                // 暗
+    {on:["イ"], kun:[]},                                           // 医
+    {on:["イ"], kun:["ゆだ.ねる"]},                                // 委
+    {on:["イ"], kun:[]},                                           // 意
+    {on:["イク"], kun:["そだ.つ","そだ.てる","はぐく.む"]},        // 育
+    {on:["イン"], kun:[]},                                         // 員
+    {on:["イン"], kun:[]},                                         // 院
+    {on:["イン"], kun:["の.む"]},                                  // 飲
+    {on:["ウン"], kun:["はこ.ぶ"]},                                // 運
+    {on:["エイ"], kun:["およ.ぐ"]},                                // 泳
+    {on:["エキ"], kun:[]},                                         // 駅
+    {on:["オウ"], kun:[]},                                         // 央
+    {on:["オウ"], kun:["よこ"]},                                   // 横
+    {on:["オク"], kun:["や"]},                                     // 屋
+    {on:["オン"], kun:["あたた.かい","あたた.まる","あたた.める"]},// 温
+    {on:["カ","ケ"], kun:["ば.ける","ば.かす"]},                   // 化
+    {on:["カ"], kun:["に"]},                                       // 荷
+    {on:["カイ"], kun:[]},                                         // 界
+    {on:["カイ"], kun:["ひら.く","あ.く","あ.ける"]},              // 開
+    {on:["カイ"], kun:[]},                                         // 階
+    {on:["カン"], kun:["さむ.い"]},                                // 寒
+    {on:["カン"], kun:[]},                                         // 感
+    {on:["カン"], kun:[]},                                         // 漢
+    {on:["カン"], kun:["やかた"]},                                 // 館
+    {on:["ガン"], kun:["きし"]},                                   // 岸
+    {on:["キ"], kun:["お.きる","お.こる","お.こす"]},              // 起
+    {on:["キ","ゴ"], kun:[], uncertain:true, note:"「ゴ」は「最期」などの特殊な読みのため要確認"}, // 期
+    {on:["キャク","カク"], kun:[]},                                // 客
+    {on:["キュウ"], kun:["きわ.める"]},                            // 究
+    {on:["キュウ"], kun:["いそ.ぐ"]},                              // 急
+    {on:["キュウ"], kun:[]},                                       // 級
+    {on:["キュウ","グウ","ク"], kun:["みや"]},                     // 宮
+    {on:["キュウ"], kun:["たま"]},                                 // 球
+    {on:["キョ","コ"], kun:["さ.る"]},                             // 去
+    {on:["キョウ"], kun:["はし"]},                                 // 橋
+    {on:["ギョウ","ゴウ"], kun:["わざ"]},                          // 業
+    {on:["キョク"], kun:["ま.がる","ま.げる"]},                    // 曲
+    {on:["キョク"], kun:[]},                                       // 局
+    {on:["ギン"], kun:[]},                                         // 銀
+    {on:["ク"], kun:[]},                                           // 区
+    {on:["ク"], kun:["くる.しい","くる.しむ","にが.い"]},          // 苦
+    {on:["グ"], kun:[]},                                           // 具
+    {on:["クン"], kun:["きみ"]},                                   // 君
+    {on:["ケイ"], kun:["かかり","かか.る"]},                       // 係
+    {on:["ケイ"], kun:["かる.い"]},                                // 軽
+    {on:["ケツ"], kun:["ち"]},                                     // 血
+    {on:["ケツ"], kun:["き.める","き.まる"]},                      // 決
+    {on:["ケン"], kun:["と.ぐ"]},                                  // 研
+    {on:["ケン"], kun:[]},                                         // 県
+    {on:["コ","ク"], kun:[]},                                      // 庫
+    {on:["コ"], kun:["みずうみ"]},                                 // 湖
+    {on:["コウ"], kun:["む.く","む.かう","む.こう","む.ける"]},    // 向
+    {on:["コウ"], kun:["しあわ.せ","さいわ.い","さち"]},           // 幸
+    {on:["コウ"], kun:["みなと"]},                                 // 港
+    {on:["ゴウ"], kun:[]},                                         // 号
+    {on:["コン"], kun:["ね"]},                                     // 根
+    {on:["サイ"], kun:["まつ.る","まつ.り"]},                      // 祭
+    {on:[], kun:["さら"]},                                         // 皿
+    {on:["シ"], kun:["つか.える"]},                                // 仕
+    {on:["シ"], kun:["し.ぬ"]},                                    // 死
+    {on:["シ"], kun:["つか.う"]},                                  // 使
+    {on:["シ"], kun:["はじ.める","はじ.まる"]},                    // 始
+    {on:["シ"], kun:["ゆび","さ.す"]},                             // 指
+    {on:["シ"], kun:["は"]},                                       // 歯
+    {on:["シ"], kun:[]},                                           // 詩
+    {on:["ジ","シ"], kun:["つぎ","つ.ぐ"]},                        // 次
+    {on:["ジ"], kun:["こと"]},                                     // 事
+    {on:["ジ"], kun:["も.つ"]},                                    // 持
+    {on:["シキ"], kun:[]},                                         // 式
+    {on:["ジツ"], kun:["み","みの.る"]},                           // 実
+    {on:["シャ"], kun:["うつ.す","うつ.る"]},                      // 写
+    {on:["シャ"], kun:["もの"]},                                   // 者
+    {on:["シュ","ス"], kun:["ぬし","おも"]},                       // 主
+    {on:["シュ","ス"], kun:["まも.る","も.り"]},                   // 守
+    {on:["シュ"], kun:["と.る"]},                                  // 取
+    {on:["シュ"], kun:["さけ","さか"]},                            // 酒
+    {on:["ジュ"], kun:["う.ける","う.かる"]},                      // 受
+    {on:["シュウ"], kun:["す"]},                                   // 州
+    {on:["シュウ","ジュウ"], kun:["ひろ.う"]},                     // 拾
+    {on:["シュウ"], kun:["お.わる","お.える"]},                    // 終
+    {on:["シュウ"], kun:["なら.う"]},                              // 習
+    {on:["シュウ"], kun:["あつ.まる","あつ.める","つど.う"]},      // 集
+    {on:["ジュウ"], kun:["す.む","す.まう"]},                      // 住
+    {on:["ジュウ","チョウ"], kun:["おも.い","かさ.ねる","かさ.なる"]}, // 重
+    {on:["シュク"], kun:["やど","やど.る","やど.す"]},             // 宿
+    {on:["ショ"], kun:["ところ"]},                                 // 所
+    {on:["ショ"], kun:["あつ.い"]},                                // 暑
+    {on:["ジョ"], kun:["たす.ける","たす.かる","すけ"]},           // 助
+    {on:["ショウ"], kun:[], uncertain:true, note:"訓読みは一般的でないため未掲載。用例で要確認"}, // 昭
+    {on:["ショウ"], kun:["き.える","け.す"]},                      // 消
+    {on:["ショウ"], kun:["あきな.う"]},                            // 商
+    {on:["ショウ"], kun:[]},                                       // 章
+    {on:["ショウ"], kun:["か.つ","まさ.る"]},                      // 勝
+    {on:["ジョウ"], kun:["の.る","の.せる"]},                      // 乗
+    {on:["ショク"], kun:["う.える","う.わる"]},                    // 植
+    {on:["シン"], kun:["もう.す"]},                                // 申
+    {on:["シン"], kun:["み"]},                                     // 身
+    {on:["シン","ジン"], kun:["かみ","かん"], uncertain:true, note:"「こう」等の特殊な読みは今回は不採用。「かみ／かん」以外の読みは要確認"}, // 神
+    {on:["シン"], kun:["ま"]},                                     // 真
+    {on:["シン"], kun:["ふか.い","ふか.まる","ふか.める"]},        // 深
+    {on:["シン"], kun:["すす.む","すす.める"]},                    // 進
+    {on:["セイ","セ"], kun:["よ"]},                                // 世
+    {on:["セイ"], kun:["ととの.える","ととの.う"]},                // 整
+    {on:["セキ","シャク"], kun:["むかし"]},                        // 昔
+    {on:["ゼン"], kun:["まった.く","すべ.て"]},                    // 全
+    {on:["ソウ","ショウ"], kun:["あい"]},                          // 相
+    {on:["ソウ"], kun:["おく.る"]},                                // 送
+    {on:["ソウ","ソ"], kun:[]},                                    // 想
+    {on:["ソク"], kun:["いき"]},                                   // 息
+    {on:["ソク"], kun:["はや.い","はや.める","はや.まる","すみ.やか"]}, // 速
+    {on:["ゾク"], kun:[]},                                         // 族
+    {on:["タ"], kun:["ほか"]},                                     // 他
+    {on:["ダ"], kun:["う.つ"]},                                    // 打
+    {on:["タイ","ツイ"], kun:[]},                                  // 対
+    {on:["タイ"], kun:["ま.つ"]},                                  // 待
+    {on:["タイ","ダイ"], kun:["か.わる","か.える","よ","しろ"]},   // 代
+    {on:["ダイ"], kun:[]},                                         // 第
+    {on:["ダイ"], kun:[]},                                         // 題
+    {on:["タン"], kun:["すみ"]},                                   // 炭
+    {on:["タン"], kun:["みじか.い"]},                              // 短
+    {on:["ダン"], kun:[]},                                         // 談
+    {on:["チャク","ジャク"], kun:["き.る","つ.く","つ.ける"]},     // 着
+    {on:["チュウ"], kun:["そそ.ぐ"]},                              // 注
+    {on:["チュウ"], kun:["はしら"]},                               // 柱
+    {on:["チョウ","テイ"], kun:[], uncertain:true, note:"訓読みは一般的でないため未掲載。読みの優先順位は要確認"}, // 丁
+    {on:["チョウ"], kun:[]},                                       // 帳
+    {on:["チョウ"], kun:["しら.べる","ととの.う","ととの.える"]},  // 調
+    {on:["ツイ"], kun:["お.う"]},                                  // 追
+    {on:["テイ","ジョウ"], kun:["さだ.める","さだ.まる","さだ.か"]}, // 定
+    {on:["テイ"], kun:["にわ"]},                                   // 庭
+    {on:["テキ"], kun:["ふえ"]},                                   // 笛
+    {on:["テツ"], kun:[]},                                         // 鉄
+    {on:["テン"], kun:["ころ.がる","ころ.げる","ころ.がす","ころ.ぶ"]}, // 転
+    {on:["ト","ツ"], kun:["みやこ"]},                              // 都
+    {on:["ド","ト"], kun:["たび"], uncertain:true, note:"「たび」は「度々」等の読み。単独訓読みとしての扱いは要確認"}, // 度
+    {on:["トウ"], kun:["な.げる"]},                                // 投
+    {on:["トウ","ズ"], kun:["まめ"]},                              // 豆
+    {on:["トウ"], kun:["しま"]},                                   // 島
+    {on:["トウ"], kun:["ゆ"]},                                     // 湯
+    {on:["トウ","ト"], kun:["のぼ.る"]},                           // 登
+    {on:["トウ"], kun:["ひと.しい"]},                              // 等
+    {on:["ドウ"], kun:["うご.く","うご.かす"]},                    // 動
+    {on:["ドウ"], kun:["わらべ"]},                                 // 童
+    {on:["ノウ"], kun:[]},                                         // 農
+    {on:["ハ"], kun:["なみ"]},                                     // 波
+    {on:["ハイ"], kun:["くば.る"]},                                // 配
+    {on:["バイ"], kun:[]},                                         // 倍
+    {on:[], kun:["はこ"]},                                         // 箱
+    {on:[], kun:["はた","はたけ"]},                                // 畑
+    {on:["ハツ","ホツ"], kun:[]},                                  // 発
+    {on:["ハン","ホン","タン"], kun:["そ.る","そ.らす"]},          // 反
+    {on:["ハン"], kun:["さか"]},                                   // 坂
+    {on:["ハン","バン"], kun:["いた"]},                            // 板
+    {on:["ヒ"], kun:["かわ"]},                                     // 皮
+    {on:["ヒ"], kun:["かな.しい","かな.しむ"]},                    // 悲
+    {on:["ビ"], kun:["うつく.しい"]},                              // 美
+    {on:["ビ"], kun:["はな"]},                                     // 鼻
+    {on:["ヒツ"], kun:["ふで"]},                                   // 筆
+    {on:["ヒョウ"], kun:["こおり","ひ"]},                          // 氷
+    {on:["ヒョウ"], kun:["おもて","あらわ.す","あらわ.れる"]},     // 表
+    {on:["ビョウ"], kun:[]},                                       // 秒
+    {on:["ビョウ","ヘイ"], kun:["や.む","やまい"]},                // 病
+    {on:["ヒン"], kun:["しな"]},                                   // 品
+    {on:["フ"], kun:["ま.ける","ま.かす","お.う"]},                // 負
+    {on:["ブ"], kun:[]},                                           // 部
+    {on:["フク"], kun:[]},                                         // 服
+    {on:["フク"], kun:[]},                                         // 福
+    {on:["ブツ","モツ"], kun:["もの"]},                            // 物
+    {on:["ヘイ","ビョウ"], kun:["たい.ら","ひら"]},                // 平
+    {on:["ヘン"], kun:["かえ.す","かえ.る"]},                      // 返
+    {on:["ベン"], kun:[]},                                         // 勉
+    {on:["ホウ"], kun:["はな.す","はな.つ","はな.れる","ほう.る"]}, // 放
+    {on:["ミ"], kun:["あじ","あじ.わう"]},                         // 味
+    {on:["メイ","ミョウ"], kun:["いのち"]},                        // 命
+    {on:["メン"], kun:["おも","おもて","つら"]},                   // 面
+    {on:["モン"], kun:["と.う","と.い"]},                          // 問
+    {on:["ヤク","エキ"], kun:[]},                                  // 役
+    {on:["ヤク"], kun:["くすり"]},                                 // 薬
+    {on:["ユ","ユウ","ユイ"], kun:["よし"], uncertain:true, note:"「よし」は日常語彙として頻出でないため要確認"}, // 由
+    {on:["ユ"], kun:["あぶら"]},                                   // 油
+    {on:["ユウ","ウ"], kun:["あ.る"]},                             // 有
+    {on:["ユウ","ユ"], kun:["あそ.ぶ"]},                           // 遊
+    {on:["ヨ"], kun:[]},                                           // 予
+    {on:["ヨウ"], kun:["ひつじ"]},                                 // 羊
+    {on:["ヨウ"], kun:[]},                                         // 洋
+    {on:["ヨウ"], kun:["は"]},                                     // 葉
+    {on:["ヨウ"], kun:[]},                                         // 陽
+    {on:["ヨウ"], kun:["さま"]},                                   // 様
+    {on:["ラク"], kun:["お.ちる","お.とす"]},                      // 落
+    {on:["リュウ","ル"], kun:["なが.れる","なが.す"]},             // 流
+    {on:["リョ"], kun:["たび"]},                                   // 旅
+    {on:["リョウ"], kun:[]},                                       // 両
+    {on:["リョク","ロク"], kun:["みどり"]},                        // 緑
+    {on:["レイ","ライ"], kun:[]},                                  // 礼
+    {on:["レツ"], kun:[]},                                         // 列
+    {on:["レン"], kun:["ね.る"]},                                  // 練
+    {on:["ロ"], kun:["じ"]},                                       // 路
+    {on:["ワ","オ"], kun:["やわ.らぐ","やわ.らげる","なご.む","なご.やか"]} // 和
+  ];
+
+  const KANJI_DATA = Array.from(KANJI_STRING).map((k, i) => {
+    const r = READING_TABLE[i] || {on:[], kun:[]};
+    return {
+      kanji: k,
+      grade: 3,
+      on: r.on || [],
+      kun: r.kun || [],
+      uncertain: !!r.uncertain,
+      note: r.note || ""
+    };
+  });
+
+  const UNCERTAIN_KANJI = KANJI_DATA.filter(k => k.uncertain);
+
+/* =========================================================================
+   2. 保存データ（localStorage）
+   ========================================================================= */
+  const STORAGE_KEY = "kanjiApp_g3_state_v1";
+  const ROUND_LENGTH = 10;
+  const COIN_LEVEL_STEP = 80;
+
+  function defaultState(){
+    return {
+      coins: 0,
+      streak: 0,
+      bestStreak: 0,
+      totalAnswered: 0,
+      totalCorrect: 0,
+      lastPlayDate: null,
+      history: {} // kanji -> {attempts, correct, wrong, lastDate}
+    };
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      return Object.assign(defaultState(), parsed, {history: parsed.history || {}});
+    }catch(e){
+      console.warn("保存データの読み込みに失敗しました。初期状態で開始します。", e);
+      return defaultState();
+    }
+  }
+
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){
+      console.warn("保存に失敗しました（ストレージ容量など）。", e);
+    }
+  }
+
+  let state = loadState();
+
+/* =========================================================================
+   3. キャラクター育成
+   ========================================================================= */
+  const CHAR_STAGES = [
+    {name:"たまご",           emoji:"🥚"},
+    {name:"ひよこ",           emoji:"🐣"},
+    {name:"こひよこ",         emoji:"🐤"},
+    {name:"ことり",           emoji:"🐦"},
+    {name:"わかどり",         emoji:"🦜"},
+    {name:"にじいろどり",     emoji:"🦚"},
+    {name:"しろわし",         emoji:"🦅"},
+    {name:"でんせつのとり",   emoji:"🐉"},
+    {name:"かんじマスター",   emoji:"🌟"}
+  ];
+
+  function levelFromCoins(coins){
+    return Math.floor(coins / COIN_LEVEL_STEP) + 1;
+  }
+  function stageFromLevel(level){
+    const idx = Math.min(level - 1, CHAR_STAGES.length - 1);
+    return CHAR_STAGES[idx];
+  }
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0");
+  }
+
+/* =========================================================================
+   4. クイズロジック
+   ========================================================================= */
+  function flattenReadings(kanjiObj){
+    const arr = [];
+    kanjiObj.on.forEach(r => arr.push(r.replace(/\./g, "")));
+    kanjiObj.kun.forEach(r => arr.push(r.replace(/\./g, "")));
+    return arr;
+  }
+
+  function pickKanjiWeighted(excludeChar){
+    const weights = KANJI_DATA.map(k => {
+      const h = state.history[k.kanji];
+      if(!h) return 6;
+      const wrongWeight = (h.wrong || 0) * 3;
+      const seenPenalty = Math.min((h.correct || 0) * 0.5, 4);
+      return Math.max(1, 6 + wrongWeight - seenPenalty);
+    });
+    if(excludeChar){
+      const idx = KANJI_DATA.findIndex(k => k.kanji === excludeChar);
+      if(idx >= 0) weights[idx] = 0;
+    }
+    const total = weights.reduce((a,b) => a+b, 0);
+    let r = Math.random() * total;
+    for(let i=0; i<KANJI_DATA.length; i++){
+      r -= weights[i];
+      if(r <= 0) return KANJI_DATA[i];
+    }
+    return KANJI_DATA[KANJI_DATA.length - 1];
+  }
+
+  function buildChoices(kanjiObj){
+    const pool = flattenReadings(kanjiObj);
+    const correctText = pool[Math.floor(Math.random() * pool.length)];
+    const used = new Set([correctText]);
+    const choices = [{text: correctText, correct: true}];
+    let guard = 0;
+    while(choices.length < 4 && guard < 300){
+      guard++;
+      const other = KANJI_DATA[Math.floor(Math.random() * KANJI_DATA.length)];
+      if(other.kanji === kanjiObj.kanji) continue;
+      const otherPool = flattenReadings(other);
+      if(otherPool.length === 0) continue;
+      const pick = otherPool[Math.floor(Math.random() * otherPool.length)];
+      if(used.has(pick)) continue;
+      used.add(pick);
+      choices.push({text: pick, correct: false});
+    }
+    for(let i = choices.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i+1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+    return {correctText, choices};
+  }
+
+  let session = null;
+
+  function startRound(){
+    session = {
+      active: true,
+      index: 0,
+      correctCount: 0,
+      roundCoins: 0,
+      startStreak: state.streak,
+      lastKanjiChar: null,
+      currentKanji: null,
+      currentCorrectText: null
+    };
+    showScreen("screen-quiz");
+    nextQuestion();
+  }
+
+  function quitRound(){
+    session = null;
+    goHome();
+  }
+
+  function nextQuestion(){
+    if(!session) return;
+    if(session.index >= ROUND_LENGTH){
+      endRound();
+      return;
+    }
+    session.index++;
+    const k = pickKanjiWeighted(session.lastKanjiChar);
+    session.lastKanjiChar = k.kanji;
+    session.currentKanji = k;
+    const built = buildChoices(k);
+    session.currentCorrectText = built.correctText;
+    session.currentChoices = built.choices;
+    session.active = true;
+    renderQuiz();
+  }
+
+  function selectAnswer(text, btnEl){
+    if(!session || !session.active) return;
+    session.active = false;
+
+    const isCorrect = text === session.currentCorrectText;
+    const kchar = session.currentKanji.kanji;
+    if(!state.history[kchar]){
+      state.history[kchar] = {attempts:0, correct:0, wrong:0, lastDate:null};
+    }
+    const h = state.history[kchar];
+    h.attempts++;
+    h.lastDate = todayStr();
+    state.totalAnswered++;
+
+    let earned = 0;
+    if(isCorrect){
+      h.correct++;
+      state.totalCorrect++;
+      session.correctCount++;
+      state.streak++;
+      if(state.streak > state.bestStreak) state.bestStreak = state.streak;
+      const mult = 1 + Math.min(3, Math.floor(state.streak / 5)) * 0.5;
+      earned = Math.round(10 * mult);
+      state.coins += earned;
+      session.roundCoins += earned;
+    }else{
+      h.wrong++;
+      state.streak = 0;
+    }
+    state.lastPlayDate = todayStr();
+    saveState();
+
+    renderFeedback(isCorrect, earned, btnEl);
+    setTimeout(() => { nextQuestion(); }, 1150);
+  }
+
+  function endRound(){
+    renderResult();
+    showScreen("screen-result");
+    session = null;
+  }
+
+/* =========================================================================
+   5. 画面制御・描画
+   ========================================================================= */
+  function showScreen(id){
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+  }
+
+  function goHome(){
+    renderHome();
+    showScreen("screen-home");
+  }
+
+  function renderHome(){
+    document.getElementById("home-coin").textContent = state.coins;
+    const level = levelFromCoins(state.coins);
+    const stage = stageFromLevel(level);
+    document.getElementById("home-char-emoji").textContent = stage.emoji;
+    document.getElementById("home-char-lv").textContent = "Lv." + level;
+    document.getElementById("hero-emoji").textContent = stage.emoji;
+    document.getElementById("hero-name").textContent = stage.name;
+    document.getElementById("hero-lv").textContent = "レベル " + level;
+
+    if(UNCERTAIN_KANJI.length > 0){
+      document.getElementById("uncertain-details").style.display = "block";
+      document.getElementById("uncertain-list").textContent =
+        "次の漢字は読みの採用に一部判断が入っています。ご使用前に辞典等でご確認ください：" +
+        UNCERTAIN_KANJI.map(k => k.kanji).join("、");
+    }
+  }
+
+  function renderQuiz(){
+    document.getElementById("quiz-coin").textContent = state.coins;
+    document.getElementById("quiz-streak").textContent = state.streak;
+    document.getElementById("quiz-kanji").textContent = session.currentKanji.kanji;
+    document.getElementById("quiz-feedback").textContent = "";
+    document.getElementById("quiz-feedback").className = "feedback";
+
+    const progWrap = document.getElementById("quiz-progress");
+    progWrap.innerHTML = "";
+    for(let i=1; i<=ROUND_LENGTH; i++){
+      const d = document.createElement("div");
+      d.className = "dot" + (i < session.index ? " done" : (i === session.index ? " now" : ""));
+      progWrap.appendChild(d);
+    }
+
+    const choicesWrap = document.getElementById("quiz-choices");
+    choicesWrap.innerHTML = "";
+    session.currentChoices.forEach(c => {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = c.text;
+      btn.onclick = () => selectAnswer(c.text, btn);
+      choicesWrap.appendChild(btn);
+    });
+  }
+
+  function renderFeedback(isCorrect, earned, btnEl){
+    document.querySelectorAll("#quiz-choices .choice-btn").forEach(b => {
+      b.disabled = true;
+      if(b.textContent === session.currentCorrectText) b.classList.add("correct");
+      else if(b === btnEl) b.classList.add("wrong");
+    });
+    const fb = document.getElementById("quiz-feedback");
+    if(isCorrect){
+      fb.textContent = "せいかい！ 🎉 +" + earned + "コイン";
+      fb.className = "feedback ok";
+    }else{
+      fb.textContent = "おしい！ 正解は「" + session.currentCorrectText + "」";
+      fb.className = "feedback ng shake";
+    }
+    document.getElementById("quiz-coin").textContent = state.coins;
+    document.getElementById("quiz-streak").textContent = state.streak;
+  }
+
+  function renderResult(){
+    const rate = session.correctCount + "/" + ROUND_LENGTH;
+    document.getElementById("result-correct").textContent = rate;
+    document.getElementById("result-coins").textContent = session.roundCoins + " 枚";
+    document.getElementById("result-best").textContent = state.bestStreak;
+
+    let msg = "がんばったね！";
+    let emoji = "🙂";
+    if(session.correctCount === ROUND_LENGTH){ msg = "パーフェクト！すごい！"; emoji = "🏆"; }
+    else if(session.correctCount >= ROUND_LENGTH * 0.8){ msg = "とてもよくできました！"; emoji = "🎉"; }
+    else if(session.correctCount >= ROUND_LENGTH * 0.5){ msg = "よくできました！"; emoji = "😊"; }
+    else{ msg = "つぎはもっとできるよ！"; emoji = "💪"; }
+    document.getElementById("result-msg").textContent = msg;
+    document.getElementById("result-emoji").textContent = emoji;
+  }
+
+/* =========================================================================
+   6. 保護者用ゲート・ダッシュボード
+   ========================================================================= */
+  let gateAnswer = 0;
+
+  function openParentGate(){
+    const a = 1 + Math.floor(Math.random() * 8);
+    const b = 1 + Math.floor(Math.random() * 8);
+    gateAnswer = a + b;
+    document.getElementById("gate-question").textContent = a + " + " + b + " = ?";
+    document.getElementById("gate-answer").value = "";
+    document.getElementById("gate-msg").textContent = "";
+    showScreen("screen-parent-gate");
+  }
+
+  function checkGate(){
+    const v = Number(document.getElementById("gate-answer").value);
+    if(v === gateAnswer){
+      renderParent();
+      showScreen("screen-parent");
+    }else{
+      document.getElementById("gate-msg").textContent = "こたえが違います。もう一度お試しください。";
+    }
+  }
+
+  function renderParent(){
+    document.getElementById("p-learned").textContent = Object.keys(state.history).length + " / " + KANJI_DATA.length;
+    document.getElementById("p-total").textContent = state.totalAnswered;
+    document.getElementById("p-correct").textContent = state.totalCorrect;
+    document.getElementById("p-rate").textContent = state.totalAnswered > 0
+      ? Math.round(state.totalCorrect / state.totalAnswered * 100) + " %"
+      : "-";
+    document.getElementById("p-last").textContent = state.lastPlayDate || "まだ学習履歴がありません";
+    const level = levelFromCoins(state.coins);
+    document.getElementById("p-lv").textContent = "Lv." + level + " / " + state.coins + "枚";
+
+    const entries = Object.entries(state.history)
+      .filter(([,h]) => (h.wrong || 0) > 0)
+      .sort((a,b) => b[1].wrong - a[1].wrong)
+      .slice(0, 10);
+
+    const weakWrap = document.getElementById("p-weak");
+    if(entries.length === 0){
+      weakWrap.textContent = "まだ間違えた漢字はありません。";
+    }else{
+      const rows = entries.map(([k,h]) =>
+        "<div class=\"stat-row\"><span>" + k + "</span><b>正解 " + h.correct + " / 間違い " + h.wrong + "</b></div>"
+      ).join("");
+      weakWrap.innerHTML = rows;
+    }
+
+    const allRows = KANJI_DATA.map(k => {
+      const h = state.history[k.kanji];
+      if(!h) return "";
+      return "<tr><td>" + k.kanji + "</td><td>" + h.attempts + "</td><td>" + h.correct + "</td><td>" + h.wrong + "</td><td>" + (h.lastDate || "-") + "</td></tr>";
+    }).join("");
+    document.getElementById("p-all-history").innerHTML = allRows || "<tr><td colspan=\"5\">まだ学習履歴がありません</td></tr>";
+
+    document.getElementById("p-uncertain-note").innerHTML =
+      "本アプリの読み仮名は一般的な音訓に基づいて作成していますが、全200字すべてを辞典で逐一照合したものではありません。" +
+      (UNCERTAIN_KANJI.length > 0
+        ? "特に次の漢字（" + UNCERTAIN_KANJI.map(k => k.kanji).join("、") + "）は読みの採用に判断が入っているため、正式配布・販売前に教育漢字配当表や辞典での確認を推奨します。"
+        : "");
+  }
+
+  function resetProgress(){
+    if(!confirm("学習データをすべて削除します。よろしいですか？（この操作は元に戻せません）")) return;
+    state = defaultState();
+    saveState();
+    renderParent();
+    goHome();
+  }
+
+/* =========================================================================
+   7. 初期化
+   ========================================================================= */
+  function init(){
+    renderHome();
+    showScreen("screen-home");
+  }
+  document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

@@ -78,16 +78,28 @@
 
   .kanji-display{
     text-align:center; font-size:clamp(4.5rem,24vw,8rem); font-weight:bold;
-    padding:18px 0; line-height:1;
+    padding:18px 0; line-height:1.2; word-break:keep-all;
   }
+  .kanji-display.word-mode{ font-size:clamp(2.3rem,12vw,3.6rem); }
   .quiz-sub{text-align:center; color:var(--gray); margin-bottom:10px; font-size:1rem;}
+
+  .mode-switch{display:flex; gap:10px; margin-bottom:14px;}
+  .mode-btn{
+    flex:1; padding:14px 6px; border-radius:16px; border:3px solid #e2e2e2;
+    background:#fff; font-weight:bold; font-size:.95rem; line-height:1.4;
+    cursor:pointer; touch-action:manipulation; color:var(--ink);
+  }
+  .mode-btn .mode-sub{display:block; font-size:.78rem; color:var(--gray); font-weight:normal;}
+  .mode-btn.active{border-color:var(--blue); background:#eaf4ff; color:#1f5fa8;}
+  .mode-btn.active .mode-sub{color:#1f5fa8;}
 
   .choices{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   .choice-btn{
-    padding:18px 6px; font-size:1.3rem; font-weight:bold; border-radius:16px;
+    padding:18px 6px; font-size:1.15rem; font-weight:bold; border-radius:16px;
     border:3px solid #e2e2e2; background:#fff; cursor:pointer; touch-action:manipulation;
-    min-height:64px;
+    min-height:64px; word-break:keep-all;
   }
+  .choice-btn.char-choice{font-size:2.4rem;}
   .choice-btn:active{transform:scale(.97);}
   .choice-btn.correct{background:#e3f9ec; border-color:var(--green); color:#1e8a4c;}
   .choice-btn.wrong{background:#ffe9e9; border-color:var(--red); color:#c73838;}
@@ -145,6 +157,14 @@
     </div>
 
     <div class="card">
+      <div class="mode-switch">
+        <button class="mode-btn" id="mode-btn-yomi" onclick="setMode('yomi')">
+          読み方クイズ<span class="mode-sub">かんじ→よみかた</span>
+        </button>
+        <button class="mode-btn" id="mode-btn-kanji" onclick="setMode('kanji')">
+          かんじ選択クイズ<span class="mode-sub">よみかた→かんじ</span>
+        </button>
+      </div>
       <button class="bigbtn" onclick="startRound()">クイズをはじめる（10問）</button>
       <button class="bigbtn blue" onclick="openParentGate()">保護者用メニュー</button>
     </div>
@@ -152,10 +172,11 @@
     <div class="card small">
       <details>
         <summary>つかいかた</summary>
-        <p>①「クイズをはじめる」をおして、かんじの読みかたを4つのなかから選んでね。<br>
-        ②正解するとコインがもらえて、キャラクターが育つよ。<br>
-        ③連続で正解すると、もらえるコインが増えるよ！<br>
-        ④成績は自動で保存されるから、次に開いたときも続きから遊べます。</p>
+        <p>①「読み方クイズ」か「かんじ選択クイズ」をえらんでね。<br>
+        ②「クイズをはじめる」をおして、4つのなかから正しい こたえを選んでね。<br>
+        ③正解するとコインがもらえて、キャラクターが育つよ。<br>
+        ④連続で正解すると、もらえるコインが増えるよ！<br>
+        ⑤成績は自動で保存されるから、次に開いたときも続きから遊べます。</p>
       </details>
       <details id="uncertain-details" style="display:none;">
         <summary>読み方について（保護者の方へ）</summary>
@@ -172,7 +193,7 @@
     </div>
     <div class="progresswrap" id="quiz-progress"></div>
     <div class="card">
-      <div class="quiz-sub">この かんじの 読みかたは？</div>
+      <div class="quiz-sub" id="quiz-sub">この かんじの 読みかたは？</div>
       <div class="kanji-display" id="quiz-kanji">－</div>
       <div class="choices" id="quiz-choices"></div>
       <div class="feedback" id="quiz-feedback"></div>
@@ -220,6 +241,12 @@
     </div>
 
     <div class="card">
+      <h2>モード別 正答率</h2>
+      <div class="stat-row"><span>読み方クイズ（かんじ→よみ）</span><b id="p-mode-yomi">-</b></div>
+      <div class="stat-row"><span>かんじ選択クイズ（よみ→かんじ）</span><b id="p-mode-kanji">-</b></div>
+    </div>
+
+    <div class="card">
       <h2>苦手な漢字（間違いが多い順）</h2>
       <div id="p-weak" class="small">まだデータがありません。</div>
     </div>
@@ -253,11 +280,16 @@
    -------------------------------------------------------------------------
    小学3年生配当漢字200字（ユーザー指定の並び順のまま、増減なしで使用）。
    KANJI_STRING の文字順と READING_TABLE のインデックスは 1対1 で対応する。
-   on  = 音読み（カタカナ）
+   on  = 音読み（READING_TABLE には入力の都合上カタカナで記載しているが、
+         KANJI_DATA を組み立てる際にひらがなへ変換し、アプリ内の表記は
+         音読み・訓読みともにひらがなで統一している）
    kun = 訓読み（ひらがな。送り仮名の区切りは「.」で表現。例: "あか.るい"）
    uncertain:true の項目は、読みの妥当性を辞書等で再確認することを推奨する
    （教育漢字配当表の特殊な読みや名乗り読みに近いもの）。
    ========================================================================= */
+  function kataToHira(str){
+    return str.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  }
   const KANJI_STRING =
     "悪安暗医委意育員院飲運泳駅央横屋温化荷界開階寒感漢館岸起期客究急級宮球去橋業曲局銀区苦具君係軽血決研県庫湖向幸港号根祭皿仕死使始指歯詩次事持式実写者主守取酒受州拾終習集住重宿所暑助昭消商章勝乗植申身神真深進世整昔全相送想息速族他打対待代第題炭短談着注柱丁帳調追定庭笛鉄転都度投豆島湯登等動童農波配倍箱畑発反坂板皮悲美鼻筆氷表秒病品負部服福物平返勉放味命面問役薬由油有遊予羊洋葉陽様落流旅両緑礼列練路和";
 
@@ -290,7 +322,7 @@
     {on:["カン"], kun:["やかた"]},                                 // 館
     {on:["ガン"], kun:["きし"]},                                   // 岸
     {on:["キ"], kun:["お.きる","お.こる","お.こす"]},              // 起
-    {on:["キ","ゴ"], kun:[], uncertain:true, note:"「ゴ」は「最期」などの特殊な読みのため要確認"}, // 期
+    {on:["キ","ゴ"], kun:[], uncertain:true, note:"「ご」は「最期」などの特殊な読みのため要確認"}, // 期
     {on:["キャク","カク"], kun:[]},                                // 客
     {on:["キュウ"], kun:["きわ.める"]},                            // 究
     {on:["キュウ"], kun:["いそ.ぐ"]},                              // 急
@@ -469,7 +501,7 @@
     return {
       kanji: k,
       grade: 3,
-      on: r.on || [],
+      on: (r.on || []).map(kataToHira),
       kun: r.kun || [],
       uncertain: !!r.uncertain,
       note: r.note || ""
@@ -481,9 +513,10 @@
 /* =========================================================================
    2. 保存データ（localStorage）
    ========================================================================= */
-  const STORAGE_KEY = "kanjiApp_g3_state_v1";
+  const STORAGE_KEY = "kanjiApp_g3_state_v2";
   const ROUND_LENGTH = 10;
   const COIN_LEVEL_STEP = 80;
+  const MODES = ["yomi", "kanji"]; // yomi: かんじ→よみ／kanji: よみ→かんじ
 
   function defaultState(){
     return {
@@ -493,7 +526,12 @@
       totalAnswered: 0,
       totalCorrect: 0,
       lastPlayDate: null,
-      history: {} // kanji -> {attempts, correct, wrong, lastDate}
+      lastMode: "yomi",
+      history: {}, // kanji -> {attempts, correct, wrong, lastDate}
+      modeStats: {
+        yomi:  {total: 0, correct: 0},
+        kanji: {total: 0, correct: 0}
+      }
     };
   }
 
@@ -502,7 +540,15 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if(!raw) return defaultState();
       const parsed = JSON.parse(raw);
-      return Object.assign(defaultState(), parsed, {history: parsed.history || {}});
+      const base = defaultState();
+      const merged = Object.assign({}, base, parsed);
+      merged.history = parsed.history || {};
+      merged.modeStats = {
+        yomi:  Object.assign({}, base.modeStats.yomi,  (parsed.modeStats && parsed.modeStats.yomi)  || {}),
+        kanji: Object.assign({}, base.modeStats.kanji, (parsed.modeStats && parsed.modeStats.kanji) || {})
+      };
+      if(MODES.indexOf(merged.lastMode) === -1) merged.lastMode = "yomi";
+      return merged;
     }catch(e){
       console.warn("保存データの読み込みに失敗しました。初期状態で開始します。", e);
       return defaultState();
@@ -577,42 +623,90 @@
     return KANJI_DATA[KANJI_DATA.length - 1];
   }
 
-  function buildChoices(kanjiObj){
-    const pool = flattenReadings(kanjiObj);
-    const correctText = pool[Math.floor(Math.random() * pool.length)];
-    const used = new Set([correctText]);
-    const choices = [{text: correctText, correct: true}];
+  function shuffleArr(arr){
+    for(let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // mode:"yomi"  → 問題=かんじ1字   / 選択肢=よみかた（ひらがな）4つ
+  // mode:"kanji" → 問題=よみかた1つ / 選択肢=かんじ 4字
+  function buildQuestion(mode, excludeChar){
+    const k = pickKanjiWeighted(excludeChar);
+    const readingPool = flattenReadings(k);
+    const chosenReading = readingPool[Math.floor(Math.random() * readingPool.length)];
+
+    if(mode === "kanji"){
+      const usedChars = new Set([k.kanji]);
+      const choices = [{text: k.kanji, correct: true}];
+      let guard = 0;
+      while(choices.length < 4 && guard < 400){
+        guard++;
+        const other = KANJI_DATA[Math.floor(Math.random() * KANJI_DATA.length)];
+        if(usedChars.has(other.kanji)) continue;
+        // 同じ読みを持つ漢字は正解が2つになってしまうため除外する
+        if(flattenReadings(other).includes(chosenReading)) continue;
+        usedChars.add(other.kanji);
+        choices.push({text: other.kanji, correct: false});
+      }
+      // 読みが被らない候補が足りない場合の保険（重複読みを許容してでも4択にする）
+      while(choices.length < 4){
+        const other = KANJI_DATA[Math.floor(Math.random() * KANJI_DATA.length)];
+        if(usedChars.has(other.kanji)) continue;
+        usedChars.add(other.kanji);
+        choices.push({text: other.kanji, correct: false});
+      }
+      shuffleArr(choices);
+      return {kanji: k, mode, questionText: chosenReading, correctText: k.kanji, choices};
+    }
+
+    // mode === "yomi"
+    const usedTexts = new Set([chosenReading]);
+    const choices = [{text: chosenReading, correct: true}];
     let guard = 0;
-    while(choices.length < 4 && guard < 300){
+    while(choices.length < 4 && guard < 400){
       guard++;
       const other = KANJI_DATA[Math.floor(Math.random() * KANJI_DATA.length)];
-      if(other.kanji === kanjiObj.kanji) continue;
+      if(other.kanji === k.kanji) continue;
       const otherPool = flattenReadings(other);
       if(otherPool.length === 0) continue;
       const pick = otherPool[Math.floor(Math.random() * otherPool.length)];
-      if(used.has(pick)) continue;
-      used.add(pick);
+      if(usedTexts.has(pick)) continue;
+      usedTexts.add(pick);
       choices.push({text: pick, correct: false});
     }
-    for(let i = choices.length - 1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i+1));
-      [choices[i], choices[j]] = [choices[j], choices[i]];
-    }
-    return {correctText, choices};
+    shuffleArr(choices);
+    return {kanji: k, mode, questionText: k.kanji, correctText: chosenReading, choices};
   }
 
   let session = null;
+  let currentMode = "yomi";
+
+  function setMode(mode){
+    if(MODES.indexOf(mode) === -1) return;
+    currentMode = mode;
+    state.lastMode = mode;
+    saveState();
+    updateModeButtons();
+  }
+
+  function updateModeButtons(){
+    document.getElementById("mode-btn-yomi").classList.toggle("active", currentMode === "yomi");
+    document.getElementById("mode-btn-kanji").classList.toggle("active", currentMode === "kanji");
+  }
 
   function startRound(){
     session = {
       active: true,
+      mode: currentMode,
       index: 0,
       correctCount: 0,
       roundCoins: 0,
       startStreak: state.streak,
       lastKanjiChar: null,
-      currentKanji: null,
-      currentCorrectText: null
+      currentQuestion: null
     };
     showScreen("screen-quiz");
     nextQuestion();
@@ -630,12 +724,9 @@
       return;
     }
     session.index++;
-    const k = pickKanjiWeighted(session.lastKanjiChar);
-    session.lastKanjiChar = k.kanji;
-    session.currentKanji = k;
-    const built = buildChoices(k);
-    session.currentCorrectText = built.correctText;
-    session.currentChoices = built.choices;
+    const q = buildQuestion(session.mode, session.lastKanjiChar);
+    session.lastKanjiChar = q.kanji.kanji;
+    session.currentQuestion = q;
     session.active = true;
     renderQuiz();
   }
@@ -644,8 +735,9 @@
     if(!session || !session.active) return;
     session.active = false;
 
-    const isCorrect = text === session.currentCorrectText;
-    const kchar = session.currentKanji.kanji;
+    const q = session.currentQuestion;
+    const isCorrect = text === q.correctText;
+    const kchar = q.kanji.kanji;
     if(!state.history[kchar]){
       state.history[kchar] = {attempts:0, correct:0, wrong:0, lastDate:null};
     }
@@ -654,10 +746,14 @@
     h.lastDate = todayStr();
     state.totalAnswered++;
 
+    const ms = state.modeStats[session.mode];
+    ms.total++;
+
     let earned = 0;
     if(isCorrect){
       h.correct++;
       state.totalCorrect++;
+      ms.correct++;
       session.correctCount++;
       state.streak++;
       if(state.streak > state.bestStreak) state.bestStreak = state.streak;
@@ -711,12 +807,21 @@
         "次の漢字は読みの採用に一部判断が入っています。ご使用前に辞典等でご確認ください：" +
         UNCERTAIN_KANJI.map(k => k.kanji).join("、");
     }
+    updateModeButtons();
   }
 
   function renderQuiz(){
+    const q = session.currentQuestion;
     document.getElementById("quiz-coin").textContent = state.coins;
     document.getElementById("quiz-streak").textContent = state.streak;
-    document.getElementById("quiz-kanji").textContent = session.currentKanji.kanji;
+
+    const kanjiDisplay = document.getElementById("quiz-kanji");
+    kanjiDisplay.textContent = q.questionText;
+    kanjiDisplay.classList.toggle("word-mode", q.mode === "kanji");
+
+    document.getElementById("quiz-sub").textContent =
+      q.mode === "kanji" ? "この よみかたの かんじは？" : "この かんじの 読みかたは？";
+
     document.getElementById("quiz-feedback").textContent = "";
     document.getElementById("quiz-feedback").className = "feedback";
 
@@ -730,9 +835,9 @@
 
     const choicesWrap = document.getElementById("quiz-choices");
     choicesWrap.innerHTML = "";
-    session.currentChoices.forEach(c => {
+    q.choices.forEach(c => {
       const btn = document.createElement("button");
-      btn.className = "choice-btn";
+      btn.className = "choice-btn" + (q.mode === "kanji" ? " char-choice" : "");
       btn.textContent = c.text;
       btn.onclick = () => selectAnswer(c.text, btn);
       choicesWrap.appendChild(btn);
@@ -740,9 +845,10 @@
   }
 
   function renderFeedback(isCorrect, earned, btnEl){
+    const q = session.currentQuestion;
     document.querySelectorAll("#quiz-choices .choice-btn").forEach(b => {
       b.disabled = true;
-      if(b.textContent === session.currentCorrectText) b.classList.add("correct");
+      if(b.textContent === q.correctText) b.classList.add("correct");
       else if(b === btnEl) b.classList.add("wrong");
     });
     const fb = document.getElementById("quiz-feedback");
@@ -750,7 +856,7 @@
       fb.textContent = "せいかい！ 🎉 +" + earned + "コイン";
       fb.className = "feedback ok";
     }else{
-      fb.textContent = "おしい！ 正解は「" + session.currentCorrectText + "」";
+      fb.textContent = "おしい！ 正解は「" + q.correctText + "」";
       fb.className = "feedback ng shake";
     }
     document.getElementById("quiz-coin").textContent = state.coins;
@@ -809,6 +915,12 @@
     const level = levelFromCoins(state.coins);
     document.getElementById("p-lv").textContent = "Lv." + level + " / " + state.coins + "枚";
 
+    const fmtModeRate = (ms) => ms.total > 0
+      ? ms.correct + " / " + ms.total + "問 正解（" + Math.round(ms.correct / ms.total * 100) + "%）"
+      : "まだ学習していません";
+    document.getElementById("p-mode-yomi").textContent = fmtModeRate(state.modeStats.yomi);
+    document.getElementById("p-mode-kanji").textContent = fmtModeRate(state.modeStats.kanji);
+
     const entries = Object.entries(state.history)
       .filter(([,h]) => (h.wrong || 0) > 0)
       .sort((a,b) => b[1].wrong - a[1].wrong)
@@ -850,6 +962,7 @@
    7. 初期化
    ========================================================================= */
   function init(){
+    currentMode = state.lastMode || "yomi";
     renderHome();
     showScreen("screen-home");
   }

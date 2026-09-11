@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>かんじ道場 3年生</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff9f43">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{
     --bg1:#fff7e6;
@@ -1460,6 +1466,17 @@
     showScreen("screen-home");
   }
   document.addEventListener("DOMContentLoaded", init);
+
+  // オフライン起動用のService Worker登録。
+  // ファイルをローカルで直接開いた場合（file://）は対象外（そもそも常にオフラインで動く）。
+  if("serviceWorker" in navigator && location.protocol !== "file:"){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {
+        // ホスティング環境によっては登録できない場合があるが、
+        // アプリ自体はService Workerなしでも通常どおり動作する。
+      });
+    });
+  }
 </script>
 </body>
 </html>

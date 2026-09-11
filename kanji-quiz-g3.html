@@ -102,9 +102,11 @@
   .toggle-btn .small{font-size:.85rem; color:inherit;}
 
   .kaki-prompt{
-    text-align:center; font-size:clamp(2rem,10vw,3rem); font-weight:bold;
-    padding:10px 0; color:var(--blue);
+    text-align:center; font-size:clamp(1.7rem,9vw,2.6rem); font-weight:bold;
+    padding:10px 0; color:var(--ink);
   }
+  .kaki-prompt .kaki-hl{color:var(--blue);}
+  .kaki-prompt-hint{text-align:center; margin:-6px 0 8px;}
   #kaki-canvas{
     display:block; margin:0 auto; width:100%; max-width:300px; aspect-ratio:1/1;
     background:#fff; border:3px solid #ddd; border-radius:16px;
@@ -254,6 +256,7 @@
     <div class="card">
       <div class="quiz-sub">つぎの ことばを かんじで 書いてみよう</div>
       <div class="kaki-prompt" id="kaki-prompt-reading">－</div>
+      <div class="kaki-prompt-hint small" id="kaki-prompt-hint" style="display:none;">「　」の中の 読みかたを かんじ1字で 書いてね</div>
       <canvas id="kaki-canvas" width="300" height="300"></canvas>
       <div class="kaki-canvas-actions">
         <button class="bigbtn gray" onclick="clearKakiCanvas()">消す</button>
@@ -589,50 +592,97 @@
   const UNCERTAIN_KANJI = KANJI_DATA.filter(k => k.uncertain);
 
 /* =========================================================================
-   1b. 熟語データ（熟語クイズ用）
+   1b. 熟語データ（熟語クイズ・書き取りクイズの文脈ヒント用）
    -------------------------------------------------------------------------
    ここに含む熟語は、構成する2文字がどちらも上記の200字（KANJI_STRING）
    に含まれるものだけを採用している（配当外の漢字を増やさないため）。
    読みは KANJI_DATA の音読み・訓読み表と整合するもののみを採用した。
+   r1/r2 は1文字目・2文字目それぞれが熟語の中で実際にどう読まれるか
+   （促音便・連濁などの音変化を含めた、reading内での表記）を表す。
+   r1 + r2 は必ず reading と一致する（書き取りクイズの文脈表示に使用）。
    ========================================================================= */
   const JUKUGO_DATA = [
-    {word:"暗号", reading:"あんごう"}, {word:"医院", reading:"いいん"},
-    {word:"運動", reading:"うんどう"}, {word:"運送", reading:"うんそう"},
-    {word:"屋根", reading:"やね"}, {word:"開始", reading:"かいし"},
-    {word:"感想", reading:"かんそう"}, {word:"感動", reading:"かんどう"},
-    {word:"鉄橋", reading:"てっきょう"}, {word:"薬局", reading:"やっきょく"},
-    {word:"係員", reading:"かかりいん"}, {word:"決定", reading:"けってい"},
-    {word:"研究", reading:"けんきゅう"}, {word:"幸福", reading:"こうふく"},
-    {word:"仕事", reading:"しごと"}, {word:"始発", reading:"しはつ"},
-    {word:"指定", reading:"してい"}, {word:"事実", reading:"じじつ"},
-    {word:"実物", reading:"じつぶつ"}, {word:"写真", reading:"しゃしん"},
-    {word:"酒屋", reading:"さかや"}, {word:"終業", reading:"しゅうぎょう"},
-    {word:"住所", reading:"じゅうしょ"}, {word:"重箱", reading:"じゅうばこ"},
-    {word:"宿題", reading:"しゅくだい"}, {word:"宿屋", reading:"やどや"},
-    {word:"昭和", reading:"しょうわ"}, {word:"消化", reading:"しょうか"},
-    {word:"商品", reading:"しょうひん"}, {word:"勝負", reading:"しょうぶ"},
-    {word:"勝者", reading:"しょうしゃ"}, {word:"乗客", reading:"じょうきゃく"},
-    {word:"植物", reading:"しょくぶつ"}, {word:"神様", reading:"かみさま"},
-    {word:"真実", reading:"しんじつ"}, {word:"進級", reading:"しんきゅう"},
-    {word:"世界", reading:"せかい"}, {word:"全部", reading:"ぜんぶ"},
-    {word:"相談", reading:"そうだん"}, {word:"速度", reading:"そくど"},
-    {word:"打者", reading:"だしゃ"}, {word:"対決", reading:"たいけつ"},
-    {word:"代表", reading:"だいひょう"}, {word:"短所", reading:"たんしょ"},
-    {word:"注意", reading:"ちゅうい"}, {word:"調整", reading:"ちょうせい"},
-    {word:"定員", reading:"ていいん"}, {word:"投球", reading:"とうきゅう"},
-    {word:"平等", reading:"びょうどう"}, {word:"動物", reading:"どうぶつ"},
-    {word:"農業", reading:"のうぎょう"}, {word:"発表", reading:"はっぴょう"},
-    {word:"発育", reading:"はついく"}, {word:"反対", reading:"はんたい"},
-    {word:"美化", reading:"びか"}, {word:"鼻血", reading:"はなぢ"},
-    {word:"表面", reading:"ひょうめん"}, {word:"秒速", reading:"びょうそく"},
-    {word:"病院", reading:"びょういん"}, {word:"品物", reading:"しなもの"},
-    {word:"洋服", reading:"ようふく"}, {word:"平和", reading:"へいわ"},
-    {word:"返事", reading:"へんじ"}, {word:"放送", reading:"ほうそう"},
-    {word:"意味", reading:"いみ"}, {word:"問題", reading:"もんだい"},
-    {word:"役者", reading:"やくしゃ"}, {word:"薬品", reading:"やくひん"},
-    {word:"遊具", reading:"ゆうぐ"}, {word:"予定", reading:"よてい"},
-    {word:"予習", reading:"よしゅう"}, {word:"練習", reading:"れんしゅう"}
+    {word:"暗号", reading:"あんごう", r1:"あん", r2:"ごう"},
+    {word:"医院", reading:"いいん", r1:"い", r2:"いん"},
+    {word:"運動", reading:"うんどう", r1:"うん", r2:"どう"},
+    {word:"運送", reading:"うんそう", r1:"うん", r2:"そう"},
+    {word:"屋根", reading:"やね", r1:"や", r2:"ね"},
+    {word:"開始", reading:"かいし", r1:"かい", r2:"し"},
+    {word:"感想", reading:"かんそう", r1:"かん", r2:"そう"},
+    {word:"感動", reading:"かんどう", r1:"かん", r2:"どう"},
+    {word:"鉄橋", reading:"てっきょう", r1:"てっ", r2:"きょう"},
+    {word:"薬局", reading:"やっきょく", r1:"やっ", r2:"きょく"},
+    {word:"係員", reading:"かかりいん", r1:"かかり", r2:"いん"},
+    {word:"決定", reading:"けってい", r1:"けっ", r2:"てい"},
+    {word:"研究", reading:"けんきゅう", r1:"けん", r2:"きゅう"},
+    {word:"幸福", reading:"こうふく", r1:"こう", r2:"ふく"},
+    {word:"仕事", reading:"しごと", r1:"し", r2:"ごと"},
+    {word:"始発", reading:"しはつ", r1:"し", r2:"はつ"},
+    {word:"指定", reading:"してい", r1:"し", r2:"てい"},
+    {word:"事実", reading:"じじつ", r1:"じ", r2:"じつ"},
+    {word:"実物", reading:"じつぶつ", r1:"じつ", r2:"ぶつ"},
+    {word:"写真", reading:"しゃしん", r1:"しゃ", r2:"しん"},
+    {word:"酒屋", reading:"さかや", r1:"さか", r2:"や"},
+    {word:"終業", reading:"しゅうぎょう", r1:"しゅう", r2:"ぎょう"},
+    {word:"住所", reading:"じゅうしょ", r1:"じゅう", r2:"しょ"},
+    {word:"重箱", reading:"じゅうばこ", r1:"じゅう", r2:"ばこ"},
+    {word:"宿題", reading:"しゅくだい", r1:"しゅく", r2:"だい"},
+    {word:"宿屋", reading:"やどや", r1:"やど", r2:"や"},
+    {word:"昭和", reading:"しょうわ", r1:"しょう", r2:"わ"},
+    {word:"消化", reading:"しょうか", r1:"しょう", r2:"か"},
+    {word:"商品", reading:"しょうひん", r1:"しょう", r2:"ひん"},
+    {word:"勝負", reading:"しょうぶ", r1:"しょう", r2:"ぶ"},
+    {word:"勝者", reading:"しょうしゃ", r1:"しょう", r2:"しゃ"},
+    {word:"乗客", reading:"じょうきゃく", r1:"じょう", r2:"きゃく"},
+    {word:"植物", reading:"しょくぶつ", r1:"しょく", r2:"ぶつ"},
+    {word:"神様", reading:"かみさま", r1:"かみ", r2:"さま"},
+    {word:"真実", reading:"しんじつ", r1:"しん", r2:"じつ"},
+    {word:"進級", reading:"しんきゅう", r1:"しん", r2:"きゅう"},
+    {word:"世界", reading:"せかい", r1:"せ", r2:"かい"},
+    {word:"全部", reading:"ぜんぶ", r1:"ぜん", r2:"ぶ"},
+    {word:"相談", reading:"そうだん", r1:"そう", r2:"だん"},
+    {word:"速度", reading:"そくど", r1:"そく", r2:"ど"},
+    {word:"打者", reading:"だしゃ", r1:"だ", r2:"しゃ"},
+    {word:"対決", reading:"たいけつ", r1:"たい", r2:"けつ"},
+    {word:"代表", reading:"だいひょう", r1:"だい", r2:"ひょう"},
+    {word:"短所", reading:"たんしょ", r1:"たん", r2:"しょ"},
+    {word:"注意", reading:"ちゅうい", r1:"ちゅう", r2:"い"},
+    {word:"調整", reading:"ちょうせい", r1:"ちょう", r2:"せい"},
+    {word:"定員", reading:"ていいん", r1:"てい", r2:"いん"},
+    {word:"投球", reading:"とうきゅう", r1:"とう", r2:"きゅう"},
+    {word:"平等", reading:"びょうどう", r1:"びょう", r2:"どう"},
+    {word:"動物", reading:"どうぶつ", r1:"どう", r2:"ぶつ"},
+    {word:"農業", reading:"のうぎょう", r1:"のう", r2:"ぎょう"},
+    {word:"発表", reading:"はっぴょう", r1:"はっ", r2:"ぴょう"},
+    {word:"発育", reading:"はついく", r1:"はつ", r2:"いく"},
+    {word:"反対", reading:"はんたい", r1:"はん", r2:"たい"},
+    {word:"美化", reading:"びか", r1:"び", r2:"か"},
+    {word:"鼻血", reading:"はなぢ", r1:"はな", r2:"ぢ"},
+    {word:"表面", reading:"ひょうめん", r1:"ひょう", r2:"めん"},
+    {word:"秒速", reading:"びょうそく", r1:"びょう", r2:"そく"},
+    {word:"病院", reading:"びょういん", r1:"びょう", r2:"いん"},
+    {word:"品物", reading:"しなもの", r1:"しな", r2:"もの"},
+    {word:"洋服", reading:"ようふく", r1:"よう", r2:"ふく"},
+    {word:"平和", reading:"へいわ", r1:"へい", r2:"わ"},
+    {word:"返事", reading:"へんじ", r1:"へん", r2:"じ"},
+    {word:"放送", reading:"ほうそう", r1:"ほう", r2:"そう"},
+    {word:"意味", reading:"いみ", r1:"い", r2:"み"},
+    {word:"問題", reading:"もんだい", r1:"もん", r2:"だい"},
+    {word:"役者", reading:"やくしゃ", r1:"やく", r2:"しゃ"},
+    {word:"薬品", reading:"やくひん", r1:"やく", r2:"ひん"},
+    {word:"遊具", reading:"ゆうぐ", r1:"ゆう", r2:"ぐ"},
+    {word:"予定", reading:"よてい", r1:"よ", r2:"てい"},
+    {word:"予習", reading:"よしゅう", r1:"よ", r2:"しゅう"},
+    {word:"練習", reading:"れんしゅう", r1:"れん", r2:"しゅう"}
   ];
+
+  // 漢字1字 → その字を含む熟語の一覧（書き取りクイズの文脈ヒントに使用）
+  const KAKI_CONTEXT = {};
+  JUKUGO_DATA.forEach(w => {
+    const c1 = w.word[0], c2 = w.word[1];
+    (KAKI_CONTEXT[c1] = KAKI_CONTEXT[c1] || []).push({word: w.word, wordReading: w.reading, reading: w.r1, pos: "first"});
+    (KAKI_CONTEXT[c2] = KAKI_CONTEXT[c2] || []).push({word: w.word, wordReading: w.reading, reading: w.r2, pos: "second"});
+  });
 
 /* =========================================================================
    2. 保存データ（localStorage）
@@ -793,6 +843,12 @@
       if(r <= 0) return JUKUGO_DATA[i];
     }
     return JUKUGO_DATA[JUKUGO_DATA.length - 1];
+  }
+
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+    })[ch]);
   }
 
   function shuffleArr(arr){
@@ -994,11 +1050,27 @@
    文字認識は行わず、読みを見て漢字を書く練習用のキャンバスを提供する。
    お手本を表示したあとは子ども自身が「書けた／もう少し」で採点する。
    ========================================================================= */
+  // 可能な場合は「もんだいの『だい』」のように熟語の中での読みを文脈として示す
+  // （熟語は漢字を見せずひらがなのみで表示し、答えの漢字を推測できないようにする）。
+  // 対応する熟語データが無い字は、これまで通り読み単独で出題する。
   function buildKakiQuestion(excludeChar){
     const k = pickKanjiWeighted(excludeChar);
+    const contexts = KAKI_CONTEXT[k.kanji];
+    if(contexts && contexts.length > 0){
+      const c = contexts[Math.floor(Math.random() * contexts.length)];
+      const before = c.pos === "first" ? "" : c.wordReading.slice(0, c.wordReading.length - c.reading.length);
+      const after = c.pos === "first" ? c.wordReading.slice(c.reading.length) : "";
+      return {
+        kanji: k,
+        promptReading: c.reading,
+        promptBefore: before,
+        promptAfter: after,
+        hasContext: true
+      };
+    }
     const pool = flattenReadings(k);
     const reading = pool[Math.floor(Math.random() * pool.length)];
-    return {kanji: k, promptReading: reading};
+    return {kanji: k, promptReading: reading, promptBefore: "", promptAfter: "", hasContext: false};
   }
 
   function startKakiRound(){
@@ -1032,7 +1104,18 @@
     const q = session.currentQuestion;
     document.getElementById("kaki-coin").textContent = state.coins;
     document.getElementById("kaki-streak").textContent = state.streak;
-    document.getElementById("kaki-prompt-reading").textContent = q.promptReading;
+
+    const promptEl = document.getElementById("kaki-prompt-reading");
+    const hintEl = document.getElementById("kaki-prompt-hint");
+    if(q.hasContext){
+      promptEl.innerHTML = escapeHtml(q.promptBefore) +
+        "「<span class=\"kaki-hl\">" + escapeHtml(q.promptReading) + "</span>」" +
+        escapeHtml(q.promptAfter);
+      hintEl.style.display = "block";
+    }else{
+      promptEl.textContent = q.promptReading;
+      hintEl.style.display = "none";
+    }
     clearKakiCanvas();
 
     document.getElementById("kaki-answer-wrap").style.display = "none";

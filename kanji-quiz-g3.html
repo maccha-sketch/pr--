@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>かんじ道場 3年生</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff9f43">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{
     --bg1:#fff7e6;
@@ -83,15 +89,51 @@
   .kanji-display.word-mode{ font-size:clamp(2.3rem,12vw,3.6rem); }
   .quiz-sub{text-align:center; color:var(--gray); margin-bottom:10px; font-size:1rem;}
 
-  .mode-switch{display:flex; gap:10px; margin-bottom:14px;}
+  .mode-switch{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
   .mode-btn{
-    flex:1; padding:14px 6px; border-radius:16px; border:3px solid #e2e2e2;
+    padding:14px 6px; border-radius:16px; border:3px solid #e2e2e2;
     background:#fff; font-weight:bold; font-size:.95rem; line-height:1.4;
     cursor:pointer; touch-action:manipulation; color:var(--ink);
   }
   .mode-btn .mode-sub{display:block; font-size:.78rem; color:var(--gray); font-weight:normal;}
   .mode-btn.active{border-color:var(--blue); background:#eaf4ff; color:#1f5fa8;}
   .mode-btn.active .mode-sub{color:#1f5fa8;}
+
+  .toggle-btn{
+    font-size:1rem; padding:14px 10px; border:3px solid #e2e2e2;
+    background:#fff; color:var(--ink); box-shadow:none; margin-bottom:2px;
+  }
+  .toggle-btn:active{transform:none;}
+  .toggle-btn.active{background:#fff2cc; border-color:#e0a800; color:#8a6d00;}
+  .toggle-btn .small{font-size:.85rem; color:inherit;}
+
+  .kaki-prompt{
+    text-align:center; font-size:clamp(1.7rem,9vw,2.6rem); font-weight:bold;
+    padding:10px 0; color:var(--ink);
+  }
+  .kaki-prompt .kaki-hl{color:var(--blue);}
+  .kaki-prompt-hint{text-align:center; margin:-6px 0 8px;}
+  #kaki-canvas{
+    display:block; margin:0 auto; width:100%; max-width:300px; aspect-ratio:1/1;
+    background:#fff; border:3px solid #ddd; border-radius:16px;
+    touch-action:none; cursor:crosshair;
+  }
+  .kaki-canvas-actions{text-align:center; margin:10px 0;}
+  .kaki-canvas-actions .bigbtn{
+    width:auto; display:inline-block; padding:10px 24px; font-size:1rem; margin:0;
+  }
+  .kaki-answer-kanji{
+    text-align:center; font-size:clamp(4rem,20vw,6rem); font-weight:bold; padding:6px 0;
+  }
+  .kaki-answer-reading{text-align:center; margin-bottom:10px;}
+  .judge-row{display:flex; gap:10px; margin-top:6px;}
+  .judge-btn{
+    flex:1; padding:16px; border-radius:16px; font-size:1.1rem; font-weight:bold;
+    border:none; color:#fff; cursor:pointer; touch-action:manipulation;
+  }
+  .judge-btn.ok{background:var(--green); box-shadow:0 4px 0 #1e8a4c;}
+  .judge-btn.ng{background:var(--red); box-shadow:0 4px 0 #c73838;}
+  .judge-btn:active{transform:translateY(2px);}
 
   .choices{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   .choice-btn{
@@ -164,8 +206,17 @@
         <button class="mode-btn" id="mode-btn-kanji" onclick="setMode('kanji')">
           かんじ選択クイズ<span class="mode-sub">よみかた→かんじ</span>
         </button>
+        <button class="mode-btn" id="mode-btn-jukugo" onclick="setMode('jukugo')">
+          熟語クイズ<span class="mode-sub">ことば→よみかた</span>
+        </button>
+        <button class="mode-btn" id="mode-btn-kaki" onclick="setMode('kaki')">
+          書き取りクイズ<span class="mode-sub">よみかた→かんじを書く</span>
+        </button>
       </div>
-      <button class="bigbtn" onclick="startRound()">クイズをはじめる（10問）</button>
+      <button class="bigbtn toggle-btn" id="weak-toggle-btn" onclick="toggleWeakOnly()">
+        🎯 苦手な漢字だけで練習する <span id="weak-count">(0件)</span>
+      </button>
+      <button class="bigbtn" id="start-quiz-btn" onclick="startSelectedMode()">クイズをはじめる（10問）</button>
       <button class="bigbtn blue" onclick="openParentGate()">保護者用メニュー</button>
     </div>
 
@@ -197,6 +248,35 @@
       <div class="kanji-display" id="quiz-kanji">－</div>
       <div class="choices" id="quiz-choices"></div>
       <div class="feedback" id="quiz-feedback"></div>
+    </div>
+    <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
+  </section>
+
+  <!-- ================= QUIZ (書き取り) ================= -->
+  <section id="screen-quiz-kaki" class="screen">
+    <div class="topbar">
+      <div class="coin">🪙 <span id="kaki-coin">0</span></div>
+      <div class="charmini">🔥 <span id="kaki-streak">0</span> れんぞく</div>
+    </div>
+    <div class="progresswrap" id="kaki-progress"></div>
+    <div class="card">
+      <div class="quiz-sub">つぎの ことばを かんじで 書いてみよう</div>
+      <div class="kaki-prompt" id="kaki-prompt-reading">－</div>
+      <div class="kaki-prompt-hint small" id="kaki-prompt-hint" style="display:none;">「　」の中の 読みかたを かんじ1字で 書いてね</div>
+      <canvas id="kaki-canvas" width="300" height="300"></canvas>
+      <div class="kaki-canvas-actions">
+        <button class="bigbtn gray" onclick="clearKakiCanvas()">消す</button>
+      </div>
+      <div id="kaki-answer-wrap" style="display:none;">
+        <div class="kaki-answer-kanji" id="kaki-answer-kanji">－</div>
+        <div class="kaki-answer-reading small" id="kaki-answer-detail"></div>
+      </div>
+      <button class="bigbtn blue" id="kaki-reveal-btn" onclick="revealKakiAnswer()">こたえを見る</button>
+      <div class="judge-row" id="kaki-judge-buttons" style="display:none;">
+        <button class="judge-btn ok" onclick="markKakiResult(true)">書けた！</button>
+        <button class="judge-btn ng" onclick="markKakiResult(false)">もう少し…</button>
+      </div>
+      <div class="feedback" id="kaki-feedback"></div>
     </div>
     <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
   </section>
@@ -244,11 +324,18 @@
       <h2>モード別 正答率</h2>
       <div class="stat-row"><span>読み方クイズ（かんじ→よみ）</span><b id="p-mode-yomi">-</b></div>
       <div class="stat-row"><span>かんじ選択クイズ（よみ→かんじ）</span><b id="p-mode-kanji">-</b></div>
+      <div class="stat-row"><span>熟語クイズ（ことば→よみ）</span><b id="p-mode-jukugo">-</b></div>
+      <div class="stat-row"><span>書き取りクイズ（よみ→かんじを書く）</span><b id="p-mode-kaki">-</b></div>
     </div>
 
     <div class="card">
       <h2>苦手な漢字（間違いが多い順）</h2>
       <div id="p-weak" class="small">まだデータがありません。</div>
+    </div>
+
+    <div class="card">
+      <h2>苦手な熟語（参考・間違いが多い順）</h2>
+      <div id="p-weak-jukugo" class="small">まだデータがありません。</div>
     </div>
 
     <div class="card">
@@ -511,12 +598,106 @@
   const UNCERTAIN_KANJI = KANJI_DATA.filter(k => k.uncertain);
 
 /* =========================================================================
+   1b. 熟語データ（熟語クイズ・書き取りクイズの文脈ヒント用）
+   -------------------------------------------------------------------------
+   ここに含む熟語は、構成する2文字がどちらも上記の200字（KANJI_STRING）
+   に含まれるものだけを採用している（配当外の漢字を増やさないため）。
+   読みは KANJI_DATA の音読み・訓読み表と整合するもののみを採用した。
+   r1/r2 は1文字目・2文字目それぞれが熟語の中で実際にどう読まれるか
+   （促音便・連濁などの音変化を含めた、reading内での表記）を表す。
+   r1 + r2 は必ず reading と一致する（書き取りクイズの文脈表示に使用）。
+   ========================================================================= */
+  const JUKUGO_DATA = [
+    {word:"暗号", reading:"あんごう", r1:"あん", r2:"ごう"},
+    {word:"医院", reading:"いいん", r1:"い", r2:"いん"},
+    {word:"運動", reading:"うんどう", r1:"うん", r2:"どう"},
+    {word:"運送", reading:"うんそう", r1:"うん", r2:"そう"},
+    {word:"屋根", reading:"やね", r1:"や", r2:"ね"},
+    {word:"開始", reading:"かいし", r1:"かい", r2:"し"},
+    {word:"感想", reading:"かんそう", r1:"かん", r2:"そう"},
+    {word:"感動", reading:"かんどう", r1:"かん", r2:"どう"},
+    {word:"鉄橋", reading:"てっきょう", r1:"てっ", r2:"きょう"},
+    {word:"薬局", reading:"やっきょく", r1:"やっ", r2:"きょく"},
+    {word:"係員", reading:"かかりいん", r1:"かかり", r2:"いん"},
+    {word:"決定", reading:"けってい", r1:"けっ", r2:"てい"},
+    {word:"研究", reading:"けんきゅう", r1:"けん", r2:"きゅう"},
+    {word:"幸福", reading:"こうふく", r1:"こう", r2:"ふく"},
+    {word:"仕事", reading:"しごと", r1:"し", r2:"ごと"},
+    {word:"始発", reading:"しはつ", r1:"し", r2:"はつ"},
+    {word:"指定", reading:"してい", r1:"し", r2:"てい"},
+    {word:"事実", reading:"じじつ", r1:"じ", r2:"じつ"},
+    {word:"実物", reading:"じつぶつ", r1:"じつ", r2:"ぶつ"},
+    {word:"写真", reading:"しゃしん", r1:"しゃ", r2:"しん"},
+    {word:"酒屋", reading:"さかや", r1:"さか", r2:"や"},
+    {word:"終業", reading:"しゅうぎょう", r1:"しゅう", r2:"ぎょう"},
+    {word:"住所", reading:"じゅうしょ", r1:"じゅう", r2:"しょ"},
+    {word:"重箱", reading:"じゅうばこ", r1:"じゅう", r2:"ばこ"},
+    {word:"宿題", reading:"しゅくだい", r1:"しゅく", r2:"だい"},
+    {word:"宿屋", reading:"やどや", r1:"やど", r2:"や"},
+    {word:"昭和", reading:"しょうわ", r1:"しょう", r2:"わ"},
+    {word:"消化", reading:"しょうか", r1:"しょう", r2:"か"},
+    {word:"商品", reading:"しょうひん", r1:"しょう", r2:"ひん"},
+    {word:"勝負", reading:"しょうぶ", r1:"しょう", r2:"ぶ"},
+    {word:"勝者", reading:"しょうしゃ", r1:"しょう", r2:"しゃ"},
+    {word:"乗客", reading:"じょうきゃく", r1:"じょう", r2:"きゃく"},
+    {word:"植物", reading:"しょくぶつ", r1:"しょく", r2:"ぶつ"},
+    {word:"神様", reading:"かみさま", r1:"かみ", r2:"さま"},
+    {word:"真実", reading:"しんじつ", r1:"しん", r2:"じつ"},
+    {word:"進級", reading:"しんきゅう", r1:"しん", r2:"きゅう"},
+    {word:"世界", reading:"せかい", r1:"せ", r2:"かい"},
+    {word:"全部", reading:"ぜんぶ", r1:"ぜん", r2:"ぶ"},
+    {word:"相談", reading:"そうだん", r1:"そう", r2:"だん"},
+    {word:"速度", reading:"そくど", r1:"そく", r2:"ど"},
+    {word:"打者", reading:"だしゃ", r1:"だ", r2:"しゃ"},
+    {word:"対決", reading:"たいけつ", r1:"たい", r2:"けつ"},
+    {word:"代表", reading:"だいひょう", r1:"だい", r2:"ひょう"},
+    {word:"短所", reading:"たんしょ", r1:"たん", r2:"しょ"},
+    {word:"注意", reading:"ちゅうい", r1:"ちゅう", r2:"い"},
+    {word:"調整", reading:"ちょうせい", r1:"ちょう", r2:"せい"},
+    {word:"定員", reading:"ていいん", r1:"てい", r2:"いん"},
+    {word:"投球", reading:"とうきゅう", r1:"とう", r2:"きゅう"},
+    {word:"平等", reading:"びょうどう", r1:"びょう", r2:"どう"},
+    {word:"動物", reading:"どうぶつ", r1:"どう", r2:"ぶつ"},
+    {word:"農業", reading:"のうぎょう", r1:"のう", r2:"ぎょう"},
+    {word:"発表", reading:"はっぴょう", r1:"はっ", r2:"ぴょう"},
+    {word:"発育", reading:"はついく", r1:"はつ", r2:"いく"},
+    {word:"反対", reading:"はんたい", r1:"はん", r2:"たい"},
+    {word:"美化", reading:"びか", r1:"び", r2:"か"},
+    {word:"鼻血", reading:"はなぢ", r1:"はな", r2:"ぢ"},
+    {word:"表面", reading:"ひょうめん", r1:"ひょう", r2:"めん"},
+    {word:"秒速", reading:"びょうそく", r1:"びょう", r2:"そく"},
+    {word:"病院", reading:"びょういん", r1:"びょう", r2:"いん"},
+    {word:"品物", reading:"しなもの", r1:"しな", r2:"もの"},
+    {word:"洋服", reading:"ようふく", r1:"よう", r2:"ふく"},
+    {word:"平和", reading:"へいわ", r1:"へい", r2:"わ"},
+    {word:"返事", reading:"へんじ", r1:"へん", r2:"じ"},
+    {word:"放送", reading:"ほうそう", r1:"ほう", r2:"そう"},
+    {word:"意味", reading:"いみ", r1:"い", r2:"み"},
+    {word:"問題", reading:"もんだい", r1:"もん", r2:"だい"},
+    {word:"役者", reading:"やくしゃ", r1:"やく", r2:"しゃ"},
+    {word:"薬品", reading:"やくひん", r1:"やく", r2:"ひん"},
+    {word:"遊具", reading:"ゆうぐ", r1:"ゆう", r2:"ぐ"},
+    {word:"予定", reading:"よてい", r1:"よ", r2:"てい"},
+    {word:"予習", reading:"よしゅう", r1:"よ", r2:"しゅう"},
+    {word:"練習", reading:"れんしゅう", r1:"れん", r2:"しゅう"}
+  ];
+
+  // 漢字1字 → その字を含む熟語の一覧（書き取りクイズの文脈ヒントに使用）
+  const KAKI_CONTEXT = {};
+  JUKUGO_DATA.forEach(w => {
+    const c1 = w.word[0], c2 = w.word[1];
+    (KAKI_CONTEXT[c1] = KAKI_CONTEXT[c1] || []).push({word: w.word, wordReading: w.reading, reading: w.r1, pos: "first"});
+    (KAKI_CONTEXT[c2] = KAKI_CONTEXT[c2] || []).push({word: w.word, wordReading: w.reading, reading: w.r2, pos: "second"});
+  });
+
+/* =========================================================================
    2. 保存データ（localStorage）
    ========================================================================= */
   const STORAGE_KEY = "kanjiApp_g3_state_v2";
   const ROUND_LENGTH = 10;
   const COIN_LEVEL_STEP = 80;
-  const MODES = ["yomi", "kanji"]; // yomi: かんじ→よみ／kanji: よみ→かんじ
+  // yomi:かんじ→よみ／kanji:よみ→かんじ／jukugo:じゅくご→よみ／kaki:よみ→かんじを書く
+  const MODES = ["yomi", "kanji", "jukugo", "kaki"];
 
   function defaultState(){
     return {
@@ -527,10 +708,14 @@
       totalCorrect: 0,
       lastPlayDate: null,
       lastMode: "yomi",
+      weakOnly: false,
       history: {}, // kanji -> {attempts, correct, wrong, lastDate}
+      jukugoHistory: {}, // word -> {attempts, correct, wrong, lastDate}
       modeStats: {
-        yomi:  {total: 0, correct: 0},
-        kanji: {total: 0, correct: 0}
+        yomi:   {total: 0, correct: 0},
+        kanji:  {total: 0, correct: 0},
+        jukugo: {total: 0, correct: 0},
+        kaki:   {total: 0, correct: 0}
       }
     };
   }
@@ -543,9 +728,13 @@
       const base = defaultState();
       const merged = Object.assign({}, base, parsed);
       merged.history = parsed.history || {};
+      merged.jukugoHistory = parsed.jukugoHistory || {};
+      merged.weakOnly = typeof parsed.weakOnly === "boolean" ? parsed.weakOnly : false;
       merged.modeStats = {
-        yomi:  Object.assign({}, base.modeStats.yomi,  (parsed.modeStats && parsed.modeStats.yomi)  || {}),
-        kanji: Object.assign({}, base.modeStats.kanji, (parsed.modeStats && parsed.modeStats.kanji) || {})
+        yomi:   Object.assign({}, base.modeStats.yomi,   (parsed.modeStats && parsed.modeStats.yomi)   || {}),
+        kanji:  Object.assign({}, base.modeStats.kanji,  (parsed.modeStats && parsed.modeStats.kanji)  || {}),
+        jukugo: Object.assign({}, base.modeStats.jukugo, (parsed.modeStats && parsed.modeStats.jukugo) || {}),
+        kaki:   Object.assign({}, base.modeStats.kaki,   (parsed.modeStats && parsed.modeStats.kaki)   || {})
       };
       if(MODES.indexOf(merged.lastMode) === -1) merged.lastMode = "yomi";
       return merged;
@@ -602,8 +791,26 @@
     return arr;
   }
 
+  function getWeakKanjiList(){
+    return KANJI_DATA.filter(k => {
+      const h = state.history[k.kanji];
+      return h && (h.wrong || 0) > 0;
+    });
+  }
+
+  // 「苦手な漢字だけで練習する」がONで対象がある場合はその漢字だけを出題候補にする。
+  // 対象が0件のときは自動的に通常の200字にフォールバックする。
+  function getActiveKanjiPool(){
+    if(state.weakOnly){
+      const weak = getWeakKanjiList();
+      if(weak.length > 0) return weak;
+    }
+    return KANJI_DATA;
+  }
+
   function pickKanjiWeighted(excludeChar){
-    const weights = KANJI_DATA.map(k => {
+    const pool = getActiveKanjiPool();
+    const weights = pool.map(k => {
       const h = state.history[k.kanji];
       if(!h) return 6;
       const wrongWeight = (h.wrong || 0) * 3;
@@ -611,16 +818,43 @@
       return Math.max(1, 6 + wrongWeight - seenPenalty);
     });
     if(excludeChar){
-      const idx = KANJI_DATA.findIndex(k => k.kanji === excludeChar);
+      const idx = pool.findIndex(k => k.kanji === excludeChar);
       if(idx >= 0) weights[idx] = 0;
     }
     const total = weights.reduce((a,b) => a+b, 0);
     let r = Math.random() * total;
-    for(let i=0; i<KANJI_DATA.length; i++){
+    for(let i=0; i<pool.length; i++){
       r -= weights[i];
-      if(r <= 0) return KANJI_DATA[i];
+      if(r <= 0) return pool[i];
     }
-    return KANJI_DATA[KANJI_DATA.length - 1];
+    return pool[pool.length - 1];
+  }
+
+  function pickJukugoWeighted(excludeWord){
+    const weights = JUKUGO_DATA.map(w => {
+      const h = state.jukugoHistory[w.word];
+      if(!h) return 6;
+      const wrongWeight = (h.wrong || 0) * 3;
+      const seenPenalty = Math.min((h.correct || 0) * 0.5, 4);
+      return Math.max(1, 6 + wrongWeight - seenPenalty);
+    });
+    if(excludeWord){
+      const idx = JUKUGO_DATA.findIndex(w => w.word === excludeWord);
+      if(idx >= 0) weights[idx] = 0;
+    }
+    const total = weights.reduce((a,b) => a+b, 0);
+    let r = Math.random() * total;
+    for(let i=0; i<JUKUGO_DATA.length; i++){
+      r -= weights[i];
+      if(r <= 0) return JUKUGO_DATA[i];
+    }
+    return JUKUGO_DATA[JUKUGO_DATA.length - 1];
+  }
+
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+    })[ch]);
   }
 
   function shuffleArr(arr){
@@ -631,9 +865,27 @@
     return arr;
   }
 
-  // mode:"yomi"  → 問題=かんじ1字   / 選択肢=よみかた（ひらがな）4つ
-  // mode:"kanji" → 問題=よみかた1つ / 選択肢=かんじ 4字
+  // mode:"yomi"   → 問題=かんじ1字   / 選択肢=よみかた（ひらがな）4つ
+  // mode:"kanji"  → 問題=よみかた1つ / 選択肢=かんじ 4字
+  // mode:"jukugo" → 問題=熟語（2字） / 選択肢=よみかた（ひらがな）4つ
   function buildQuestion(mode, excludeChar){
+    if(mode === "jukugo"){
+      const w = pickJukugoWeighted(excludeChar);
+      const usedTexts = new Set([w.reading]);
+      const choices = [{text: w.reading, correct: true}];
+      let guard = 0;
+      while(choices.length < 4 && guard < 400){
+        guard++;
+        const other = JUKUGO_DATA[Math.floor(Math.random() * JUKUGO_DATA.length)];
+        if(other.word === w.word) continue;
+        if(usedTexts.has(other.reading)) continue;
+        usedTexts.add(other.reading);
+        choices.push({text: other.reading, correct: false});
+      }
+      shuffleArr(choices);
+      return {kanji: {kanji: w.word}, mode, questionText: w.word, correctText: w.reading, choices, isJukugo: true};
+    }
+
     const k = pickKanjiWeighted(excludeChar);
     const readingPool = flattenReadings(k);
     const chosenReading = readingPool[Math.floor(Math.random() * readingPool.length)];
@@ -695,10 +947,29 @@
   function updateModeButtons(){
     document.getElementById("mode-btn-yomi").classList.toggle("active", currentMode === "yomi");
     document.getElementById("mode-btn-kanji").classList.toggle("active", currentMode === "kanji");
+    document.getElementById("mode-btn-jukugo").classList.toggle("active", currentMode === "jukugo");
+    document.getElementById("mode-btn-kaki").classList.toggle("active", currentMode === "kaki");
+    document.getElementById("start-quiz-btn").textContent =
+      currentMode === "kaki" ? "書き取りれんしゅうをはじめる（10問）" : "クイズをはじめる（10問）";
+  }
+
+  function toggleWeakOnly(){
+    state.weakOnly = !state.weakOnly;
+    saveState();
+    renderHome();
+  }
+
+  function startSelectedMode(){
+    if(currentMode === "kaki"){
+      startKakiRound();
+    }else{
+      startRound();
+    }
   }
 
   function startRound(){
     session = {
+      kind: "choice",
       active: true,
       mode: currentMode,
       index: 0,
@@ -738,10 +1009,11 @@
     const q = session.currentQuestion;
     const isCorrect = text === q.correctText;
     const kchar = q.kanji.kanji;
-    if(!state.history[kchar]){
-      state.history[kchar] = {attempts:0, correct:0, wrong:0, lastDate:null};
+    const historyStore = q.isJukugo ? state.jukugoHistory : state.history;
+    if(!historyStore[kchar]){
+      historyStore[kchar] = {attempts:0, correct:0, wrong:0, lastDate:null};
     }
-    const h = state.history[kchar];
+    const h = historyStore[kchar];
     h.attempts++;
     h.lastDate = todayStr();
     state.totalAnswered++;
@@ -779,6 +1051,207 @@
   }
 
 /* =========================================================================
+   4b. 書き取りクイズ（手書き練習・自己採点）
+   -------------------------------------------------------------------------
+   文字認識は行わず、読みを見て漢字を書く練習用のキャンバスを提供する。
+   お手本を表示したあとは子ども自身が「書けた／もう少し」で採点する。
+   ========================================================================= */
+  // 可能な場合は「もんだいの『だい』」のように熟語の中での読みを文脈として示す
+  // （熟語は漢字を見せずひらがなのみで表示し、答えの漢字を推測できないようにする）。
+  // 対応する熟語データが無い字は、これまで通り読み単独で出題する。
+  function buildKakiQuestion(excludeChar){
+    const k = pickKanjiWeighted(excludeChar);
+    const contexts = KAKI_CONTEXT[k.kanji];
+    if(contexts && contexts.length > 0){
+      const c = contexts[Math.floor(Math.random() * contexts.length)];
+      const before = c.pos === "first" ? "" : c.wordReading.slice(0, c.wordReading.length - c.reading.length);
+      const after = c.pos === "first" ? c.wordReading.slice(c.reading.length) : "";
+      return {
+        kanji: k,
+        promptReading: c.reading,
+        promptBefore: before,
+        promptAfter: after,
+        hasContext: true
+      };
+    }
+    const pool = flattenReadings(k);
+    const reading = pool[Math.floor(Math.random() * pool.length)];
+    return {kanji: k, promptReading: reading, promptBefore: "", promptAfter: "", hasContext: false};
+  }
+
+  function startKakiRound(){
+    session = {
+      kind: "kaki",
+      active: true,
+      index: 0,
+      correctCount: 0,
+      roundCoins: 0,
+      lastKanjiChar: null,
+      currentQuestion: null
+    };
+    showScreen("screen-quiz-kaki");
+    nextKakiQuestion();
+  }
+
+  function nextKakiQuestion(){
+    if(!session) return;
+    if(session.index >= ROUND_LENGTH){
+      endRound();
+      return;
+    }
+    session.index++;
+    const q = buildKakiQuestion(session.lastKanjiChar);
+    session.lastKanjiChar = q.kanji.kanji;
+    session.currentQuestion = q;
+    renderKakiQuiz();
+  }
+
+  function renderKakiQuiz(){
+    const q = session.currentQuestion;
+    document.getElementById("kaki-coin").textContent = state.coins;
+    document.getElementById("kaki-streak").textContent = state.streak;
+
+    const promptEl = document.getElementById("kaki-prompt-reading");
+    const hintEl = document.getElementById("kaki-prompt-hint");
+    if(q.hasContext){
+      promptEl.innerHTML = escapeHtml(q.promptBefore) +
+        "「<span class=\"kaki-hl\">" + escapeHtml(q.promptReading) + "</span>」" +
+        escapeHtml(q.promptAfter);
+      hintEl.style.display = "block";
+    }else{
+      promptEl.textContent = q.promptReading;
+      hintEl.style.display = "none";
+    }
+    clearKakiCanvas();
+
+    document.getElementById("kaki-answer-wrap").style.display = "none";
+    document.getElementById("kaki-judge-buttons").style.display = "none";
+    document.getElementById("kaki-reveal-btn").style.display = "block";
+    const fb = document.getElementById("kaki-feedback");
+    fb.textContent = "";
+    fb.className = "feedback";
+
+    const progWrap = document.getElementById("kaki-progress");
+    progWrap.innerHTML = "";
+    for(let i=1; i<=ROUND_LENGTH; i++){
+      const d = document.createElement("div");
+      d.className = "dot" + (i < session.index ? " done" : (i === session.index ? " now" : ""));
+      progWrap.appendChild(d);
+    }
+  }
+
+  function revealKakiAnswer(){
+    const q = session.currentQuestion;
+    document.getElementById("kaki-answer-kanji").textContent = q.kanji.kanji;
+    const onList = q.kanji.on.length > 0 ? q.kanji.on.join("、") : "なし";
+    const kunList = q.kanji.kun.length > 0 ? q.kanji.kun.map(r => r.replace(/\./g, "")).join("、") : "なし";
+    document.getElementById("kaki-answer-detail").textContent = "音読み: " + onList + " ／ 訓読み: " + kunList;
+    document.getElementById("kaki-answer-wrap").style.display = "block";
+    document.getElementById("kaki-reveal-btn").style.display = "none";
+    document.getElementById("kaki-judge-buttons").style.display = "flex";
+  }
+
+  function markKakiResult(isCorrect){
+    if(!session) return;
+    const q = session.currentQuestion;
+    const kchar = q.kanji.kanji;
+    if(!state.history[kchar]){
+      state.history[kchar] = {attempts:0, correct:0, wrong:0, lastDate:null};
+    }
+    const h = state.history[kchar];
+    h.attempts++;
+    h.lastDate = todayStr();
+    state.totalAnswered++;
+
+    const ms = state.modeStats.kaki;
+    ms.total++;
+
+    let earned = 0;
+    if(isCorrect){
+      h.correct++;
+      state.totalCorrect++;
+      ms.correct++;
+      session.correctCount++;
+      state.streak++;
+      if(state.streak > state.bestStreak) state.bestStreak = state.streak;
+      const mult = 1 + Math.min(3, Math.floor(state.streak / 5)) * 0.5;
+      earned = Math.round(10 * mult);
+      state.coins += earned;
+      session.roundCoins += earned;
+    }else{
+      h.wrong++;
+      state.streak = 0;
+    }
+    state.lastPlayDate = todayStr();
+    saveState();
+
+    renderKakiFeedback(isCorrect, earned);
+    setTimeout(() => { nextKakiQuestion(); }, 1150);
+  }
+
+  function renderKakiFeedback(isCorrect, earned){
+    const fb = document.getElementById("kaki-feedback");
+    if(isCorrect){
+      fb.textContent = "やったね！ 🎉 +" + earned + "コイン";
+      fb.className = "feedback ok";
+    }else{
+      fb.textContent = "つぎは かけるよ！ れんしゅうしよう";
+      fb.className = "feedback ng";
+    }
+    document.getElementById("kaki-coin").textContent = state.coins;
+    document.getElementById("kaki-streak").textContent = state.streak;
+    document.getElementById("kaki-judge-buttons").style.display = "none";
+    document.getElementById("kaki-reveal-btn").style.display = "none";
+  }
+
+  let kakiCtx = null;
+  let kakiDrawing = false;
+
+  function initKakiCanvas(){
+    const canvas = document.getElementById("kaki-canvas");
+    kakiCtx = canvas.getContext("2d");
+    kakiCtx.lineWidth = 10;
+    kakiCtx.lineCap = "round";
+    kakiCtx.lineJoin = "round";
+    kakiCtx.strokeStyle = "#3a2e1f";
+    canvas.addEventListener("pointerdown", kakiPointerDown);
+    canvas.addEventListener("pointermove", kakiPointerMove);
+    canvas.addEventListener("pointerup", kakiPointerUp);
+    canvas.addEventListener("pointerleave", kakiPointerUp);
+  }
+
+  function getCanvasPos(canvas, evt){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY};
+  }
+
+  function kakiPointerDown(e){
+    kakiDrawing = true;
+    e.target.setPointerCapture(e.pointerId);
+    const p = getCanvasPos(e.target, e);
+    kakiCtx.beginPath();
+    kakiCtx.moveTo(p.x, p.y);
+  }
+
+  function kakiPointerMove(e){
+    if(!kakiDrawing) return;
+    const p = getCanvasPos(e.target, e);
+    kakiCtx.lineTo(p.x, p.y);
+    kakiCtx.stroke();
+  }
+
+  function kakiPointerUp(){
+    kakiDrawing = false;
+  }
+
+  function clearKakiCanvas(){
+    const canvas = document.getElementById("kaki-canvas");
+    kakiCtx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+/* =========================================================================
    5. 画面制御・描画
    ========================================================================= */
   function showScreen(id){
@@ -807,6 +1280,12 @@
         "次の漢字は読みの採用に一部判断が入っています。ご使用前に辞典等でご確認ください：" +
         UNCERTAIN_KANJI.map(k => k.kanji).join("、");
     }
+
+    const weakCount = getWeakKanjiList().length;
+    const weakBtn = document.getElementById("weak-toggle-btn");
+    weakBtn.classList.toggle("active", state.weakOnly);
+    document.getElementById("weak-count").textContent = "(" + weakCount + "件)";
+
     updateModeButtons();
   }
 
@@ -817,10 +1296,12 @@
 
     const kanjiDisplay = document.getElementById("quiz-kanji");
     kanjiDisplay.textContent = q.questionText;
-    kanjiDisplay.classList.toggle("word-mode", q.mode === "kanji");
+    kanjiDisplay.classList.toggle("word-mode", q.mode === "kanji" || q.mode === "jukugo");
 
-    document.getElementById("quiz-sub").textContent =
-      q.mode === "kanji" ? "この よみかたの かんじは？" : "この かんじの 読みかたは？";
+    let subText = "この かんじの 読みかたは？";
+    if(q.mode === "kanji") subText = "この よみかたの かんじは？";
+    else if(q.mode === "jukugo") subText = "この ことばの 読みかたは？";
+    document.getElementById("quiz-sub").textContent = subText;
 
     document.getElementById("quiz-feedback").textContent = "";
     document.getElementById("quiz-feedback").className = "feedback";
@@ -920,6 +1401,8 @@
       : "まだ学習していません";
     document.getElementById("p-mode-yomi").textContent = fmtModeRate(state.modeStats.yomi);
     document.getElementById("p-mode-kanji").textContent = fmtModeRate(state.modeStats.kanji);
+    document.getElementById("p-mode-jukugo").textContent = fmtModeRate(state.modeStats.jukugo);
+    document.getElementById("p-mode-kaki").textContent = fmtModeRate(state.modeStats.kaki);
 
     const entries = Object.entries(state.history)
       .filter(([,h]) => (h.wrong || 0) > 0)
@@ -934,6 +1417,21 @@
         "<div class=\"stat-row\"><span>" + k + "</span><b>正解 " + h.correct + " / 間違い " + h.wrong + "</b></div>"
       ).join("");
       weakWrap.innerHTML = rows;
+    }
+
+    const jukugoEntries = Object.entries(state.jukugoHistory)
+      .filter(([,h]) => (h.wrong || 0) > 0)
+      .sort((a,b) => b[1].wrong - a[1].wrong)
+      .slice(0, 10);
+
+    const weakJukugoWrap = document.getElementById("p-weak-jukugo");
+    if(jukugoEntries.length === 0){
+      weakJukugoWrap.textContent = "まだ間違えた熟語はありません。";
+    }else{
+      const rows = jukugoEntries.map(([w,h]) =>
+        "<div class=\"stat-row\"><span>" + w + "</span><b>正解 " + h.correct + " / 間違い " + h.wrong + "</b></div>"
+      ).join("");
+      weakJukugoWrap.innerHTML = rows;
     }
 
     const allRows = KANJI_DATA.map(k => {
@@ -963,10 +1461,22 @@
    ========================================================================= */
   function init(){
     currentMode = state.lastMode || "yomi";
+    initKakiCanvas();
     renderHome();
     showScreen("screen-home");
   }
   document.addEventListener("DOMContentLoaded", init);
+
+  // オフライン起動用のService Worker登録。
+  // ファイルをローカルで直接開いた場合（file://）は対象外（そもそも常にオフラインで動く）。
+  if("serviceWorker" in navigator && location.protocol !== "file:"){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {
+        // ホスティング環境によっては登録できない場合があるが、
+        // アプリ自体はService Workerなしでも通常どおり動作する。
+      });
+    });
+  }
 </script>
 </body>
 </html>

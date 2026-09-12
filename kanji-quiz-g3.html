@@ -77,6 +77,10 @@
   .bigbtn.gray{background:#b9b9b9; box-shadow:0 5px 0 #8f8f8f; font-size:1.05rem; padding:14px;}
   .bigbtn.gray:active{box-shadow:0 2px 0 #8f8f8f;}
 
+  .weak-badge{
+    text-align:center; font-size:.85rem; font-weight:bold; color:#8a6d00;
+    background:#fff2cc; border-radius:10px; padding:6px 10px; margin-bottom:10px;
+  }
   .progresswrap{display:flex; justify-content:center; gap:6px; margin-bottom:14px;}
   .dot{width:10px; height:10px; border-radius:50%; background:#ddd;}
   .dot.done{background:var(--accent);}
@@ -242,6 +246,7 @@
       <div class="coin">🪙 <span id="quiz-coin">0</span></div>
       <div class="charmini">🔥 <span id="quiz-streak">0</span> れんぞく</div>
     </div>
+    <div class="weak-badge" id="quiz-weak-badge" style="display:none;">🎯 苦手な漢字で練習中</div>
     <div class="progresswrap" id="quiz-progress"></div>
     <div class="card">
       <div class="quiz-sub" id="quiz-sub">この かんじの 読みかたは？</div>
@@ -258,6 +263,7 @@
       <div class="coin">🪙 <span id="kaki-coin">0</span></div>
       <div class="charmini">🔥 <span id="kaki-streak">0</span> れんぞく</div>
     </div>
+    <div class="weak-badge" id="kaki-weak-badge" style="display:none;">🎯 苦手な漢字で練習中</div>
     <div class="progresswrap" id="kaki-progress"></div>
     <div class="card">
       <div class="quiz-sub">つぎの ことばを かんじで 書いてみよう</div>
@@ -798,13 +804,18 @@
     });
   }
 
-  // 「苦手な漢字だけで練習する」がONで対象がある場合はその漢字だけを出題候補にする。
-  // 対象が0件のときは自動的に通常の200字にフォールバックする。
+  // 苦手漢字が少なすぎるうちに絞り込むと、同じ数字を延々と繰り返すことになるため、
+  // 最低でもこの件数がたまるまでは「苦手だけで練習する」を実際には有効化しない。
+  const MIN_WEAK_FOR_RESTRICT = 8;
+
+  // 「苦手な漢字だけで練習する」がONで、かつ対象が十分な件数（MIN_WEAK_FOR_RESTRICT以上）
+  // ある場合だけ実際に絞り込みを行う。件数が足りない間は通常の200字にフォールバックする。
+  function isWeakOnlyActive(){
+    return state.weakOnly && getWeakKanjiList().length >= MIN_WEAK_FOR_RESTRICT;
+  }
+
   function getActiveKanjiPool(){
-    if(state.weakOnly){
-      const weak = getWeakKanjiList();
-      if(weak.length > 0) return weak;
-    }
+    if(isWeakOnlyActive()) return getWeakKanjiList();
     return KANJI_DATA;
   }
 
@@ -1110,6 +1121,7 @@
     const q = session.currentQuestion;
     document.getElementById("kaki-coin").textContent = state.coins;
     document.getElementById("kaki-streak").textContent = state.streak;
+    document.getElementById("kaki-weak-badge").style.display = isWeakOnlyActive() ? "block" : "none";
 
     const promptEl = document.getElementById("kaki-prompt-reading");
     const hintEl = document.getElementById("kaki-prompt-hint");
@@ -1283,8 +1295,13 @@
 
     const weakCount = getWeakKanjiList().length;
     const weakBtn = document.getElementById("weak-toggle-btn");
-    weakBtn.classList.toggle("active", state.weakOnly);
-    document.getElementById("weak-count").textContent = "(" + weakCount + "件)";
+    weakBtn.classList.toggle("active", isWeakOnlyActive());
+    const weakCountEl = document.getElementById("weak-count");
+    if(state.weakOnly && weakCount < MIN_WEAK_FOR_RESTRICT){
+      weakCountEl.textContent = "(" + weakCount + "件・あと" + (MIN_WEAK_FOR_RESTRICT - weakCount) + "件で有効)";
+    }else{
+      weakCountEl.textContent = "(" + weakCount + "件)";
+    }
 
     updateModeButtons();
   }
@@ -1293,6 +1310,8 @@
     const q = session.currentQuestion;
     document.getElementById("quiz-coin").textContent = state.coins;
     document.getElementById("quiz-streak").textContent = state.streak;
+    document.getElementById("quiz-weak-badge").style.display =
+      (q.mode !== "jukugo" && isWeakOnlyActive()) ? "block" : "none";
 
     const kanjiDisplay = document.getElementById("quiz-kanji");
     kanjiDisplay.textContent = q.questionText;

@@ -103,6 +103,23 @@
   .mode-btn.active{border-color:var(--blue); background:#eaf4ff; color:#1f5fa8;}
   .mode-btn.active .mode-sub{color:#1f5fa8;}
 
+  .tabbar{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;}
+  .tab-btn{
+    padding:13px 6px; border-radius:16px; border:3px solid #e2e2e2;
+    background:#fff; font-weight:bold; font-size:1rem; color:var(--ink);
+    cursor:pointer; touch-action:manipulation;
+  }
+  .tab-btn.active{border-color:var(--accent); background:#fff2e0; color:var(--accent-dark);}
+
+  .ward-map-wrap{margin:4px 0 14px;}
+  .ward-map-svg{width:100%; height:auto; display:block;}
+  .ward-cell{stroke:#fff; stroke-width:2; cursor:pointer;}
+  .ward-cell.ward-highlight{stroke:var(--blue); stroke-width:5;}
+  .ward-cell.ward-correct{stroke:var(--green); stroke-width:5;}
+  .ward-cell.ward-wrong{stroke:var(--red); stroke-width:5;}
+  .ward-prompt{text-align:center; font-size:clamp(2rem,10vw,3rem); font-weight:bold; padding:8px 0 0;}
+  .ward-prompt-reading{text-align:center; margin-bottom:8px;}
+
   .toggle-btn{
     font-size:1rem; padding:14px 10px; border:3px solid #e2e2e2;
     background:#fff; color:var(--ink); box-shadow:none; margin-bottom:2px;
@@ -202,7 +219,12 @@
       <div class="lv" id="hero-lv">レベル 1</div>
     </div>
 
-    <div class="card">
+    <div class="tabbar">
+      <button class="tab-btn" id="tab-btn-kanji" onclick="setHomeTab('kanji')">📖 かんじクイズ</button>
+      <button class="tab-btn" id="tab-btn-nagoya" onclick="setHomeTab('nagoya')">🗾 なごや区クイズ</button>
+    </div>
+
+    <div class="card" id="card-kanji-modes">
       <div class="mode-switch">
         <button class="mode-btn" id="mode-btn-yomi" onclick="setMode('yomi')">
           読み方クイズ<span class="mode-sub">かんじ→よみかた</span>
@@ -221,17 +243,39 @@
         🎯 苦手な漢字だけで練習する <span id="weak-count">(0件)</span>
       </button>
       <button class="bigbtn" id="start-quiz-btn" onclick="startSelectedMode()">クイズをはじめる（10問）</button>
-      <button class="bigbtn blue" onclick="openParentGate()">保護者用メニュー</button>
     </div>
+
+    <div class="card" id="card-nagoya-modes" style="display:none;">
+      <div class="mode-switch">
+        <button class="mode-btn" id="mode-btn-wardKanji" onclick="setNagoyaMode('wardKanji')">
+          かんじ選択クイズ<span class="mode-sub">ちずの区→かんじ</span>
+        </button>
+        <button class="mode-btn" id="mode-btn-wardChizu" onclick="setNagoyaMode('wardChizu')">
+          地図タップクイズ<span class="mode-sub">区の名前→ちずでタップ</span>
+        </button>
+      </div>
+      <button class="bigbtn" id="start-nagoya-btn" onclick="startSelectedNagoyaMode()">クイズをはじめる（10問）</button>
+    </div>
+
+    <button class="bigbtn blue" onclick="openParentGate()">保護者用メニュー</button>
 
     <div class="card small">
       <details>
-        <summary>つかいかた</summary>
+        <summary>つかいかた（かんじクイズ）</summary>
         <p>①「読み方クイズ」か「かんじ選択クイズ」をえらんでね。<br>
         ②「クイズをはじめる」をおして、4つのなかから正しい こたえを選んでね。<br>
         ③正解するとコインがもらえて、キャラクターが育つよ。<br>
         ④連続で正解すると、もらえるコインが増えるよ！<br>
         ⑤成績は自動で保存されるから、次に開いたときも続きから遊べます。</p>
+      </details>
+      <details>
+        <summary>つかいかた（なごや区クイズ）</summary>
+        <p>①名古屋市の16の区について、ちずの位置とかんじを覚えるクイズだよ。<br>
+        ②「かんじ選択クイズ」は、ちずで光っている区の名前を4つのかんじから選ぶよ。<br>
+        ③「地図タップクイズ」は、出てきた区の名前を見て、ちずの正しい場所をタップするよ。<br>
+        ④こたえのあと、正しい場所がちずで色つきの わく で示されるので、位置を覚えていこう。<br>
+        ⑤こちらもコイン・キャラクター育成はかんじクイズと共通だよ。</p>
+        <p class="note">※ちずは位置関係をつかみやすくした模式図で、実際の区境とは形がことなります。</p>
       </details>
       <details id="uncertain-details" style="display:none;">
         <summary>読み方について（保護者の方へ）</summary>
@@ -287,6 +331,39 @@
     <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
   </section>
 
+  <!-- ================= QUIZ (なごや区・かんじ選択) ================= -->
+  <section id="screen-quiz-ward" class="screen">
+    <div class="topbar">
+      <div class="coin">🪙 <span id="wardk-coin">0</span></div>
+      <div class="charmini">🔥 <span id="wardk-streak">0</span> れんぞく</div>
+    </div>
+    <div class="progresswrap" id="wardk-progress"></div>
+    <div class="card">
+      <div class="quiz-sub">ちずで 光っている区の 名前は？</div>
+      <div class="ward-map-wrap" id="wardk-map"></div>
+      <div class="choices" id="wardk-choices"></div>
+      <div class="feedback" id="wardk-feedback"></div>
+    </div>
+    <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
+  </section>
+
+  <!-- ================= QUIZ (なごや区・地図タップ) ================= -->
+  <section id="screen-quiz-chizu" class="screen">
+    <div class="topbar">
+      <div class="coin">🪙 <span id="chizu-coin">0</span></div>
+      <div class="charmini">🔥 <span id="chizu-streak">0</span> れんぞく</div>
+    </div>
+    <div class="progresswrap" id="chizu-progress"></div>
+    <div class="card">
+      <div class="quiz-sub">この区は ちずの どこ？ タップしてね</div>
+      <div class="ward-prompt" id="chizu-prompt-kanji">－</div>
+      <div class="ward-prompt-reading small" id="chizu-prompt-reading">－</div>
+      <div class="ward-map-wrap" id="chizu-map"></div>
+      <div class="feedback" id="chizu-feedback"></div>
+    </div>
+    <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
+  </section>
+
   <!-- ================= RESULT ================= -->
   <section id="screen-result" class="screen">
     <h1>けっか発表！</h1>
@@ -337,6 +414,18 @@
     <div class="card">
       <h2>苦手な漢字（間違いが多い順）</h2>
       <div id="p-weak" class="small">まだデータがありません。</div>
+    </div>
+
+    <div class="card">
+      <h2>なごや区クイズ 成績</h2>
+      <div class="stat-row"><span>学習した区の数</span><b id="p-ward-learned">0 / 16</b></div>
+      <div class="stat-row"><span>かんじ選択クイズ（ちず→かんじ）</span><b id="p-mode-wardKanji">-</b></div>
+      <div class="stat-row"><span>地図タップクイズ（区名→ちず）</span><b id="p-mode-wardChizu">-</b></div>
+    </div>
+
+    <div class="card">
+      <h2>苦手な区（間違いが多い順）</h2>
+      <div id="p-weak-ward" class="small">まだデータがありません。</div>
     </div>
 
     <div class="card">
@@ -697,6 +786,63 @@
   });
 
 /* =========================================================================
+   1c. なごや市16区データ（地図クイズ用）
+   -------------------------------------------------------------------------
+   cells は「位置関係と隣接関係をつかみやすくした模式図」上でのマス目位置
+   [行,列] の一覧（1区＝1マス以上）。実際の区境の形とは一致しない。
+   色は区ごとに機械的に割り当てた識別用のパステルカラー。
+   ========================================================================= */
+  const WARD_GRID = {cols: 6, rows: 6, cellSize: 54, gap: 4};
+
+  const WARD_DATA = [
+    {id:"kita",      kanji:"北区",   reading:"きたく",     cells:[[0,1],[0,2],[1,1]]},
+    {id:"moriyama",  kanji:"守山区", reading:"もりやまく", cells:[[0,3],[0,4],[1,3],[1,4]]},
+    {id:"nishi",     kanji:"西区",   reading:"にしく",     cells:[[1,0],[2,0]]},
+    {id:"higashi",   kanji:"東区",   reading:"ひがしく",   cells:[[1,2]]},
+    {id:"nakamura",  kanji:"中村区", reading:"なかむらく", cells:[[2,1],[3,1]]},
+    {id:"naka",      kanji:"中区",   reading:"なかく",     cells:[[2,2],[3,2]]},
+    {id:"chikusa",   kanji:"千種区", reading:"ちくさく",   cells:[[2,3],[2,4]]},
+    {id:"meito",     kanji:"名東区", reading:"めいとうく", cells:[[2,5],[3,5]]},
+    {id:"nakagawa",  kanji:"中川区", reading:"なかがわく", cells:[[3,0],[4,0]]},
+    {id:"showa",     kanji:"昭和区", reading:"しょうわく", cells:[[3,3]]},
+    {id:"tempaku",   kanji:"天白区", reading:"てんぱくく", cells:[[3,4],[4,3],[4,4]]},
+    {id:"atsuta",    kanji:"熱田区", reading:"あつたく",   cells:[[4,1]]},
+    {id:"mizuho",    kanji:"瑞穂区", reading:"みずほく",   cells:[[4,2]]},
+    {id:"midori",    kanji:"緑区",   reading:"みどりく",   cells:[[4,5],[5,3],[5,4],[5,5]]},
+    {id:"minato",    kanji:"港区",   reading:"みなとく",   cells:[[5,0]]},
+    {id:"minami",    kanji:"南区",   reading:"みなみく",   cells:[[5,1],[5,2]]}
+  ];
+  WARD_DATA.forEach((w, i) => { w.color = "hsl(" + Math.round(i * 360 / WARD_DATA.length) + " 70% 82%)"; });
+
+  const NAGOYA_MODES = ["wardKanji", "wardChizu"];
+
+  // opts.highlightId: この区を出題対象として強調表示する
+  // opts.mode==="reveal": 正解(opts.correctId)を緑、誤ってタップした区(opts.tappedId)があれば赤で示す
+  function buildWardMapSVG(opts){
+    opts = opts || {};
+    const g = WARD_GRID;
+    const w = g.cols * (g.cellSize + g.gap) + g.gap;
+    const h = g.rows * (g.cellSize + g.gap) + g.gap;
+    const rects = [];
+    WARD_DATA.forEach(ward => {
+      let cls = "ward-cell";
+      if(opts.mode === "reveal"){
+        if(ward.id === opts.correctId) cls += " ward-correct";
+        else if(ward.id === opts.tappedId) cls += " ward-wrong";
+      }else if(ward.id === opts.highlightId){
+        cls += " ward-highlight";
+      }
+      ward.cells.forEach(([r, c]) => {
+        const x = g.gap + c * (g.cellSize + g.gap);
+        const y = g.gap + r * (g.cellSize + g.gap);
+        rects.push('<rect class="' + cls + '" data-ward="' + ward.id + '" x="' + x + '" y="' + y +
+          '" width="' + g.cellSize + '" height="' + g.cellSize + '" rx="8" fill="' + ward.color + '"></rect>');
+      });
+    });
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" class="ward-map-svg">' + rects.join("") + '</svg>';
+  }
+
+/* =========================================================================
    2. 保存データ（localStorage）
    ========================================================================= */
   const STORAGE_KEY = "kanjiApp_g3_state_v2";
@@ -722,6 +868,13 @@
         kanji:  {total: 0, correct: 0},
         jukugo: {total: 0, correct: 0},
         kaki:   {total: 0, correct: 0}
+      },
+      homeTab: "kanji",
+      lastNagoyaMode: "wardKanji",
+      wardHistory: {}, // ward id -> {attempts, correct, wrong, lastDate}
+      wardStats: {
+        wardKanji: {total: 0, correct: 0},
+        wardChizu: {total: 0, correct: 0}
       }
     };
   }
@@ -743,6 +896,15 @@
         kaki:   Object.assign({}, base.modeStats.kaki,   (parsed.modeStats && parsed.modeStats.kaki)   || {})
       };
       if(MODES.indexOf(merged.lastMode) === -1) merged.lastMode = "yomi";
+
+      merged.wardHistory = parsed.wardHistory || {};
+      merged.wardStats = {
+        wardKanji: Object.assign({}, base.wardStats.wardKanji, (parsed.wardStats && parsed.wardStats.wardKanji) || {}),
+        wardChizu: Object.assign({}, base.wardStats.wardChizu, (parsed.wardStats && parsed.wardStats.wardChizu) || {})
+      };
+      merged.homeTab = parsed.homeTab === "nagoya" ? "nagoya" : "kanji";
+      if(NAGOYA_MODES.indexOf(merged.lastNagoyaMode) === -1) merged.lastNagoyaMode = "wardKanji";
+
       return merged;
     }catch(e){
       console.warn("保存データの読み込みに失敗しました。初期状態で開始します。", e);
@@ -975,6 +1137,43 @@
       startKakiRound();
     }else{
       startRound();
+    }
+  }
+
+  let currentNagoyaMode = "wardKanji";
+
+  function setHomeTab(tab){
+    state.homeTab = tab === "nagoya" ? "nagoya" : "kanji";
+    saveState();
+    updateHomeTabUI();
+  }
+
+  function updateHomeTabUI(){
+    const tab = state.homeTab || "kanji";
+    document.getElementById("tab-btn-kanji").classList.toggle("active", tab === "kanji");
+    document.getElementById("tab-btn-nagoya").classList.toggle("active", tab === "nagoya");
+    document.getElementById("card-kanji-modes").style.display = tab === "kanji" ? "block" : "none";
+    document.getElementById("card-nagoya-modes").style.display = tab === "nagoya" ? "block" : "none";
+  }
+
+  function setNagoyaMode(mode){
+    if(NAGOYA_MODES.indexOf(mode) === -1) return;
+    currentNagoyaMode = mode;
+    state.lastNagoyaMode = mode;
+    saveState();
+    updateNagoyaModeButtons();
+  }
+
+  function updateNagoyaModeButtons(){
+    document.getElementById("mode-btn-wardKanji").classList.toggle("active", currentNagoyaMode === "wardKanji");
+    document.getElementById("mode-btn-wardChizu").classList.toggle("active", currentNagoyaMode === "wardChizu");
+  }
+
+  function startSelectedNagoyaMode(){
+    if(currentNagoyaMode === "wardChizu"){
+      startWardChizuRound();
+    }else{
+      startWardKanjiRound();
     }
   }
 
@@ -1264,6 +1463,225 @@
   }
 
 /* =========================================================================
+   4c. なごや区クイズ
+   -------------------------------------------------------------------------
+   コイン・連続正解・キャラクター育成はかんじクイズと共通のstateを使う。
+   区ごとの正解／間違いは wardHistory に、モード別成績は wardStats に記録する。
+   ========================================================================= */
+  function pickWardWeighted(excludeId){
+    const weights = WARD_DATA.map(w => {
+      const h = state.wardHistory[w.id];
+      if(!h) return 6;
+      const wrongWeight = (h.wrong || 0) * 3;
+      const seenPenalty = Math.min((h.correct || 0) * 0.5, 4);
+      return Math.max(1, 6 + wrongWeight - seenPenalty);
+    });
+    if(excludeId){
+      const idx = WARD_DATA.findIndex(w => w.id === excludeId);
+      if(idx >= 0) weights[idx] = 0;
+    }
+    const total = weights.reduce((a,b) => a+b, 0);
+    let r = Math.random() * total;
+    for(let i=0; i<WARD_DATA.length; i++){
+      r -= weights[i];
+      if(r <= 0) return WARD_DATA[i];
+    }
+    return WARD_DATA[WARD_DATA.length - 1];
+  }
+
+  // 正解・不正解を記録し、コイン・連続正解・キャラクター育成に反映する（獲得コインを返す）
+  function recordWardAnswer(wardId, modeKey, isCorrect){
+    if(!state.wardHistory[wardId]){
+      state.wardHistory[wardId] = {attempts:0, correct:0, wrong:0, lastDate:null};
+    }
+    const h = state.wardHistory[wardId];
+    h.attempts++;
+    h.lastDate = todayStr();
+    state.totalAnswered++;
+
+    const ms = state.wardStats[modeKey];
+    ms.total++;
+
+    let earned = 0;
+    if(isCorrect){
+      h.correct++;
+      state.totalCorrect++;
+      ms.correct++;
+      session.correctCount++;
+      state.streak++;
+      if(state.streak > state.bestStreak) state.bestStreak = state.streak;
+      const mult = 1 + Math.min(3, Math.floor(state.streak / 5)) * 0.5;
+      earned = Math.round(10 * mult);
+      state.coins += earned;
+      session.roundCoins += earned;
+    }else{
+      h.wrong++;
+      state.streak = 0;
+    }
+    state.lastPlayDate = todayStr();
+    saveState();
+    return earned;
+  }
+
+  // --- かんじ選択クイズ（ちずで光っている区の名前を4択から選ぶ） ---
+  function buildWardKanjiQuestion(excludeId){
+    const w = pickWardWeighted(excludeId);
+    const usedIds = new Set([w.id]);
+    const choices = [{text: w.kanji, correct: true}];
+    let guard = 0;
+    while(choices.length < 4 && guard < 200){
+      guard++;
+      const other = WARD_DATA[Math.floor(Math.random() * WARD_DATA.length)];
+      if(usedIds.has(other.id)) continue;
+      usedIds.add(other.id);
+      choices.push({text: other.kanji, correct: false});
+    }
+    shuffleArr(choices);
+    return {ward: w, correctText: w.kanji, choices};
+  }
+
+  function startWardKanjiRound(){
+    session = {
+      kind: "wardKanji", active: true, index: 0, correctCount: 0, roundCoins: 0,
+      lastWardId: null, currentQuestion: null
+    };
+    showScreen("screen-quiz-ward");
+    nextWardKanjiQuestion();
+  }
+
+  function nextWardKanjiQuestion(){
+    if(!session) return;
+    if(session.index >= ROUND_LENGTH){ endRound(); return; }
+    session.index++;
+    const q = buildWardKanjiQuestion(session.lastWardId);
+    session.lastWardId = q.ward.id;
+    session.currentQuestion = q;
+    session.active = true;
+    renderWardKanjiQuiz();
+  }
+
+  function renderWardKanjiQuiz(){
+    const q = session.currentQuestion;
+    document.getElementById("wardk-coin").textContent = state.coins;
+    document.getElementById("wardk-streak").textContent = state.streak;
+    document.getElementById("wardk-map").innerHTML = buildWardMapSVG({highlightId: q.ward.id});
+    document.getElementById("wardk-feedback").textContent = "";
+    document.getElementById("wardk-feedback").className = "feedback";
+
+    const progWrap = document.getElementById("wardk-progress");
+    progWrap.innerHTML = "";
+    for(let i=1; i<=ROUND_LENGTH; i++){
+      const d = document.createElement("div");
+      d.className = "dot" + (i < session.index ? " done" : (i === session.index ? " now" : ""));
+      progWrap.appendChild(d);
+    }
+
+    const choicesWrap = document.getElementById("wardk-choices");
+    choicesWrap.innerHTML = "";
+    q.choices.forEach(c => {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = c.text;
+      btn.onclick = () => selectWardKanjiAnswer(c.text, btn);
+      choicesWrap.appendChild(btn);
+    });
+  }
+
+  function selectWardKanjiAnswer(text, btnEl){
+    if(!session || !session.active) return;
+    session.active = false;
+    const q = session.currentQuestion;
+    const isCorrect = text === q.correctText;
+    const earned = recordWardAnswer(q.ward.id, "wardKanji", isCorrect);
+
+    document.querySelectorAll("#wardk-choices .choice-btn").forEach(b => {
+      b.disabled = true;
+      if(b.textContent === q.correctText) b.classList.add("correct");
+      else if(b === btnEl) b.classList.add("wrong");
+    });
+    document.getElementById("wardk-map").innerHTML = buildWardMapSVG({mode: "reveal", correctId: q.ward.id});
+
+    const fb = document.getElementById("wardk-feedback");
+    if(isCorrect){
+      fb.textContent = "せいかい！ 🎉 +" + earned + "コイン";
+      fb.className = "feedback ok";
+    }else{
+      fb.textContent = "おしい！ 正解は「" + q.correctText + "」";
+      fb.className = "feedback ng shake";
+    }
+    document.getElementById("wardk-coin").textContent = state.coins;
+    document.getElementById("wardk-streak").textContent = state.streak;
+    setTimeout(() => { nextWardKanjiQuestion(); }, 1150);
+  }
+
+  // --- 地図タップクイズ（区の名前を見て、ちずの正しい場所をタップする） ---
+  function startWardChizuRound(){
+    session = {
+      kind: "wardChizu", active: true, index: 0, correctCount: 0, roundCoins: 0,
+      lastWardId: null, currentQuestion: null
+    };
+    showScreen("screen-quiz-chizu");
+    nextWardChizuQuestion();
+  }
+
+  function nextWardChizuQuestion(){
+    if(!session) return;
+    if(session.index >= ROUND_LENGTH){ endRound(); return; }
+    session.index++;
+    const w = pickWardWeighted(session.lastWardId);
+    session.lastWardId = w.id;
+    session.currentQuestion = {ward: w};
+    session.active = true;
+    renderWardChizuQuiz();
+  }
+
+  function renderWardChizuQuiz(){
+    const q = session.currentQuestion;
+    document.getElementById("chizu-coin").textContent = state.coins;
+    document.getElementById("chizu-streak").textContent = state.streak;
+    document.getElementById("chizu-prompt-kanji").textContent = q.ward.kanji;
+    document.getElementById("chizu-prompt-reading").textContent = q.ward.reading;
+    document.getElementById("chizu-map").innerHTML = buildWardMapSVG({});
+    document.getElementById("chizu-feedback").textContent = "";
+    document.getElementById("chizu-feedback").className = "feedback";
+
+    const progWrap = document.getElementById("chizu-progress");
+    progWrap.innerHTML = "";
+    for(let i=1; i<=ROUND_LENGTH; i++){
+      const d = document.createElement("div");
+      d.className = "dot" + (i < session.index ? " done" : (i === session.index ? " now" : ""));
+      progWrap.appendChild(d);
+    }
+  }
+
+  function handleChizuMapClick(e){
+    if(!session || session.kind !== "wardChizu" || !session.active) return;
+    const target = e.target.closest("[data-ward]");
+    if(!target) return;
+    session.active = false;
+
+    const q = session.currentQuestion;
+    const tappedId = target.dataset.ward;
+    const isCorrect = tappedId === q.ward.id;
+    const earned = recordWardAnswer(q.ward.id, "wardChizu", isCorrect);
+
+    document.getElementById("chizu-map").innerHTML =
+      buildWardMapSVG({mode: "reveal", correctId: q.ward.id, tappedId: tappedId});
+
+    const fb = document.getElementById("chizu-feedback");
+    if(isCorrect){
+      fb.textContent = "せいかい！ 🎉 +" + earned + "コイン";
+      fb.className = "feedback ok";
+    }else{
+      fb.textContent = "おしい！ 正解は「" + q.ward.kanji + "」の場所だよ";
+      fb.className = "feedback ng shake";
+    }
+    document.getElementById("chizu-coin").textContent = state.coins;
+    document.getElementById("chizu-streak").textContent = state.streak;
+    setTimeout(() => { nextWardChizuQuestion(); }, 1150);
+  }
+
+/* =========================================================================
    5. 画面制御・描画
    ========================================================================= */
   function showScreen(id){
@@ -1304,6 +1722,8 @@
     }
 
     updateModeButtons();
+    updateHomeTabUI();
+    updateNagoyaModeButtons();
   }
 
   function renderQuiz(){
@@ -1438,6 +1858,28 @@
       weakWrap.innerHTML = rows;
     }
 
+    document.getElementById("p-ward-learned").textContent =
+      Object.keys(state.wardHistory).length + " / " + WARD_DATA.length;
+    document.getElementById("p-mode-wardKanji").textContent = fmtModeRate(state.wardStats.wardKanji);
+    document.getElementById("p-mode-wardChizu").textContent = fmtModeRate(state.wardStats.wardChizu);
+
+    const wardEntries = Object.entries(state.wardHistory)
+      .filter(([,h]) => (h.wrong || 0) > 0)
+      .sort((a,b) => b[1].wrong - a[1].wrong)
+      .slice(0, 10);
+
+    const weakWardWrap = document.getElementById("p-weak-ward");
+    if(wardEntries.length === 0){
+      weakWardWrap.textContent = "まだ間違えた区はありません。";
+    }else{
+      const rows = wardEntries.map(([id,h]) => {
+        const w = WARD_DATA.find(x => x.id === id);
+        const label = w ? w.kanji + "（" + w.reading + "）" : id;
+        return "<div class=\"stat-row\"><span>" + label + "</span><b>正解 " + h.correct + " / 間違い " + h.wrong + "</b></div>";
+      }).join("");
+      weakWardWrap.innerHTML = rows;
+    }
+
     const jukugoEntries = Object.entries(state.jukugoHistory)
       .filter(([,h]) => (h.wrong || 0) > 0)
       .sort((a,b) => b[1].wrong - a[1].wrong)
@@ -1480,7 +1922,9 @@
    ========================================================================= */
   function init(){
     currentMode = state.lastMode || "yomi";
+    currentNagoyaMode = state.lastNagoyaMode || "wardKanji";
     initKakiCanvas();
+    document.getElementById("chizu-map").addEventListener("click", handleChizuMapClick);
     renderHome();
     showScreen("screen-home");
   }

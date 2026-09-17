@@ -247,9 +247,6 @@
     </div>
 
     <div class="card" id="card-nagoya-modes" style="display:none;">
-      <button class="bigbtn blue" onclick="startWardStudy()">📖 覚える（学習ちず）</button>
-      <p class="note center">まずはここで区の名前と場所を見て慣れよう。スコアはつきません。</p>
-
       <div class="mode-switch">
         <button class="mode-btn" id="mode-btn-wardKanji" onclick="setNagoyaMode('wardKanji')">
           かんじ選択クイズ<span class="mode-sub">ちずの区→かんじ</span>
@@ -258,12 +255,7 @@
           地図タップクイズ<span class="mode-sub">区の名前→ちずでタップ</span>
         </button>
       </div>
-
-      <p class="note" style="margin:10px 2px 4px;">練習クイズ（4区ずつ）</p>
-      <div class="mode-switch" id="ward-group-buttons"></div>
-
-      <button class="bigbtn" id="ward-challenge-btn" onclick="startWardRound('all')">🏆 力だめし（16区ぜんぶ）</button>
-      <p class="note center" id="ward-challenge-hint">4つのグループを1回ずつ練習すると挑戦できるようになるよ</p>
+      <button class="bigbtn" id="start-nagoya-btn" onclick="startSelectedNagoyaMode()">クイズをはじめる（16区ぜんぶ）</button>
     </div>
 
     <button class="bigbtn blue" onclick="openParentGate()">保護者用メニュー</button>
@@ -352,7 +344,6 @@
       <div class="ward-map-wrap" id="wardk-map"></div>
       <div class="choices" id="wardk-choices"></div>
       <div class="feedback" id="wardk-feedback"></div>
-      <button class="bigbtn blue" id="wardk-next-btn" style="display:none;" onclick="nextWardKanjiQuestion()">つぎへ →</button>
     </div>
     <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
   </section>
@@ -370,21 +361,8 @@
       <div class="ward-prompt-reading small" id="chizu-prompt-reading">－</div>
       <div class="ward-map-wrap" id="chizu-map"></div>
       <div class="feedback" id="chizu-feedback"></div>
-      <button class="bigbtn blue" id="chizu-next-btn" style="display:none;" onclick="nextWardChizuQuestion()">つぎへ →</button>
     </div>
     <button class="bigbtn gray" onclick="quitRound()">やめてホームにもどる</button>
-  </section>
-
-  <!-- ================= なごや区・学習ちず（スコアなし） ================= -->
-  <section id="screen-ward-study" class="screen">
-    <h1>なごや16区 学習ちず</h1>
-    <div class="card">
-      <div class="quiz-sub">区をタップすると 名前が出るよ</div>
-      <div class="ward-prompt" id="study-kanji">－</div>
-      <div class="ward-prompt-reading small" id="study-reading">－</div>
-      <div class="ward-map-wrap" id="study-map"></div>
-    </div>
-    <button class="bigbtn blue" onclick="goHome()">ホームにもどる</button>
   </section>
 
   <!-- ================= RESULT ================= -->
@@ -397,8 +375,7 @@
       <div class="stat-row"><span>獲得コイン</span><b id="result-coins">0 枚</b></div>
       <div class="stat-row"><span>ベスト連続正解</span><b id="result-best">0</b></div>
     </div>
-    <button class="bigbtn" id="result-review-btn" style="display:none;" onclick="startWardReviewRound()">🎯 苦手だった区をもう一度</button>
-    <button class="bigbtn" onclick="retryLastRound()">もういちどクイズする</button>
+    <button class="bigbtn" onclick="startRound()">もういちどクイズする</button>
     <button class="bigbtn blue" onclick="goHome()">ホームにもどる</button>
   </section>
 
@@ -843,17 +820,6 @@
   const NAGOYA_MODES = ["wardKanji", "wardChizu"];
   const WARD_ROUND_LENGTH = WARD_DATA.length;
 
-  // 16区を地理的にまとまった4区ずつのグループに分け、少しずつ覚えられるようにする
-  const WARD_GROUPS = [
-    {label: "①都心",   wardIds: ["naka", "higashi", "nishi", "nakamura"]},
-    {label: "②北",     wardIds: ["kita", "moriyama", "chikusa", "meito"]},
-    {label: "③南西",   wardIds: ["nakagawa", "minato", "atsuta", "mizuho"]},
-    {label: "④南東",   wardIds: ["minami", "showa", "tempaku", "midori"]}
-  ];
-  function wardGroupSubLabel(group){
-    return group.wardIds.map(id => WARD_DATA.find(w => w.id === id).kanji).join("・");
-  }
-
   // opts.highlightId: この区を出題対象として強調表示する（未回答時のみ）
   // opts.answered: {wardId: true|false} その区で過去に出した答えの正誤（ラウンド中ずっと色として残る）
   // opts.flashWrongId: 直前にタップして外した区を、一時的に赤く光らせる（answeredには入れない）
@@ -915,8 +881,7 @@
       wardStats: {
         wardKanji: {total: 0, correct: 0},
         wardChizu: {total: 0, correct: 0}
-      },
-      wardGroupsCleared: {} // groupIndex(文字列) -> true。4つ揃うと「力だめし」が挑戦可能になる
+      }
     };
   }
 
@@ -945,8 +910,6 @@
       };
       merged.homeTab = parsed.homeTab === "nagoya" ? "nagoya" : "kanji";
       if(NAGOYA_MODES.indexOf(merged.lastNagoyaMode) === -1) merged.lastNagoyaMode = "wardKanji";
-      merged.wardGroupsCleared = (parsed.wardGroupsCleared && typeof parsed.wardGroupsCleared === "object")
-        ? parsed.wardGroupsCleared : {};
 
       return merged;
     }catch(e){
@@ -1212,35 +1175,12 @@
     document.getElementById("mode-btn-wardChizu").classList.toggle("active", currentNagoyaMode === "wardChizu");
   }
 
-  // scope: "group"（4区だけ）または "all"（16区ぜんぶ・力だめし）
-  function startWardRound(scope, groupIndex){
-    const wardIds = scope === "group"
-      ? WARD_GROUPS[groupIndex].wardIds.slice()
-      : WARD_DATA.map(w => w.id);
+  function startSelectedNagoyaMode(){
     if(currentNagoyaMode === "wardChizu"){
-      startWardChizuRound(wardIds, scope, groupIndex);
+      startWardChizuRound();
     }else{
-      startWardKanjiRound(wardIds, scope, groupIndex);
+      startWardKanjiRound();
     }
-  }
-
-  function renderWardGroupButtons(){
-    const wrap = document.getElementById("ward-group-buttons");
-    wrap.innerHTML = "";
-    WARD_GROUPS.forEach((group, i) => {
-      const btn = document.createElement("button");
-      btn.className = "mode-btn";
-      const cleared = !!state.wardGroupsCleared[i];
-      btn.innerHTML = (cleared ? "✅ " : "") + group.label +
-        '<span class="mode-sub">' + wardGroupSubLabel(group) + "</span>";
-      btn.onclick = () => startWardRound("group", i);
-      wrap.appendChild(btn);
-    });
-    const allCleared = WARD_GROUPS.every((g, i) => state.wardGroupsCleared[i]);
-    const challengeBtn = document.getElementById("ward-challenge-btn");
-    challengeBtn.disabled = !allCleared;
-    challengeBtn.classList.toggle("gray", !allCleared);
-    document.getElementById("ward-challenge-hint").style.display = allCleared ? "none" : "block";
   }
 
   function startRound(){
@@ -1321,31 +1261,10 @@
     setTimeout(() => { nextQuestion(); }, 1150);
   }
 
-  let lastRoundInfo = null;
-
   function endRound(){
     renderResult();
     showScreen("screen-result");
-    lastRoundInfo = session ? {
-      kind: session.kind,
-      scope: session.scope,
-      groupIndex: session.groupIndex,
-      wardIds: session.order ? session.order.slice() : null
-    } : null;
     session = null;
-  }
-
-  function retryLastRound(){
-    if(!lastRoundInfo){ startRound(); return; }
-    if(lastRoundInfo.kind === "wardKanji"){
-      startWardKanjiRound(lastRoundInfo.wardIds, lastRoundInfo.scope, lastRoundInfo.groupIndex);
-    }else if(lastRoundInfo.kind === "wardChizu"){
-      startWardChizuRound(lastRoundInfo.wardIds, lastRoundInfo.scope, lastRoundInfo.groupIndex);
-    }else if(lastRoundInfo.kind === "kaki"){
-      startKakiRound();
-    }else{
-      startRound();
-    }
   }
 
 /* =========================================================================
@@ -1611,11 +1530,11 @@
     return {ward: targetWard, correctText: targetWard.kanji, choices};
   }
 
-  function startWardKanjiRound(wardIds, scope, groupIndex){
+  function startWardKanjiRound(){
     session = {
       kind: "wardKanji", active: true, index: 0, correctCount: 0, roundCoins: 0,
-      roundLength: wardIds.length, order: shuffleArr(wardIds.slice()),
-      scope: scope, groupIndex: groupIndex, answered: {}, currentQuestion: null
+      roundLength: WARD_ROUND_LENGTH, order: shuffleArr(WARD_DATA.map(w => w.id)),
+      answered: {}, currentQuestion: null
     };
     showScreen("screen-quiz-ward");
     nextWardKanjiQuestion();
@@ -1623,7 +1542,6 @@
 
   function nextWardKanjiQuestion(){
     if(!session) return;
-    document.getElementById("wardk-next-btn").style.display = "none";
     if(session.index >= session.roundLength){ endRound(); return; }
     session.index++;
     const targetWard = WARD_DATA.find(w => w.id === session.order[session.index - 1]);
@@ -1684,16 +1602,15 @@
     }
     document.getElementById("wardk-coin").textContent = state.coins;
     document.getElementById("wardk-streak").textContent = state.streak;
-    // 自動で次に進まず、子どものペースで確認してから「つぎへ」を押してもらう
-    document.getElementById("wardk-next-btn").style.display = "block";
+    setTimeout(() => { nextWardKanjiQuestion(); }, 1150);
   }
 
   // --- 地図タップクイズ（区の名前を見て、ちずの正しい場所をタップする） ---
-  function startWardChizuRound(wardIds, scope, groupIndex){
+  function startWardChizuRound(){
     session = {
       kind: "wardChizu", active: true, index: 0, correctCount: 0, roundCoins: 0,
-      roundLength: wardIds.length, order: shuffleArr(wardIds.slice()),
-      scope: scope, groupIndex: groupIndex, answered: {}, currentQuestion: null
+      roundLength: WARD_ROUND_LENGTH, order: shuffleArr(WARD_DATA.map(w => w.id)),
+      answered: {}, currentQuestion: null
     };
     showScreen("screen-quiz-chizu");
     nextWardChizuQuestion();
@@ -1701,7 +1618,6 @@
 
   function nextWardChizuQuestion(){
     if(!session) return;
-    document.getElementById("chizu-next-btn").style.display = "none";
     if(session.index >= session.roundLength){ endRound(); return; }
     session.index++;
     const targetWard = WARD_DATA.find(w => w.id === session.order[session.index - 1]);
@@ -1757,39 +1673,7 @@
     }
     document.getElementById("chizu-coin").textContent = state.coins;
     document.getElementById("chizu-streak").textContent = state.streak;
-    // 自動で次に進まず、子どものペースで確認してから「つぎへ」を押してもらう
-    document.getElementById("chizu-next-btn").style.display = "block";
-  }
-
-  // --- 苦手だった区の復習ラウンド ---
-  let wardReviewData = null;
-
-  function startWardReviewRound(){
-    if(!wardReviewData || wardReviewData.wardIds.length === 0) return;
-    if(wardReviewData.mode === "wardChizu"){
-      startWardChizuRound(wardReviewData.wardIds, "review");
-    }else{
-      startWardKanjiRound(wardReviewData.wardIds, "review");
-    }
-  }
-
-  // --- 学習ちず（スコアなし。タップすると名前が出るだけの自由探索モード） ---
-  function startWardStudy(){
-    document.getElementById("study-kanji").textContent = "？";
-    document.getElementById("study-reading").textContent = "区をタップしてね";
-    document.getElementById("study-map").innerHTML = buildWardMapSVG({});
-    const mapEl = document.getElementById("study-map");
-    mapEl.onclick = handleStudyMapClick;
-    showScreen("screen-ward-study");
-  }
-
-  function handleStudyMapClick(e){
-    const target = e.target.closest("[data-ward]");
-    if(!target) return;
-    const ward = WARD_DATA.find(w => w.id === target.dataset.ward);
-    document.getElementById("study-kanji").textContent = ward.kanji;
-    document.getElementById("study-reading").textContent = ward.reading;
-    document.getElementById("study-map").innerHTML = buildWardMapSVG({highlightId: ward.id});
+    setTimeout(() => { nextWardChizuQuestion(); }, 1150);
   }
 
 /* =========================================================================
@@ -1835,7 +1719,6 @@
     updateModeButtons();
     updateHomeTabUI();
     updateNagoyaModeButtons();
-    renderWardGroupButtons();
   }
 
   function renderQuiz(){
@@ -1895,8 +1778,6 @@
     document.getElementById("quiz-streak").textContent = state.streak;
   }
 
-  const WARD_KINDS = ["wardKanji", "wardChizu"];
-
   function renderResult(){
     const rate = session.correctCount + "/" + session.roundLength;
     document.getElementById("result-correct").textContent = rate;
@@ -1911,27 +1792,6 @@
     else{ msg = "つぎはもっとできるよ！"; emoji = "💪"; }
     document.getElementById("result-msg").textContent = msg;
     document.getElementById("result-emoji").textContent = emoji;
-
-    const reviewBtn = document.getElementById("result-review-btn");
-    if(WARD_KINDS.indexOf(session.kind) !== -1){
-      // グループ練習を1回終えたら、そのグループを「経験済み」にする（4つ揃うと力だめしが解禁）
-      if(session.scope === "group" && session.groupIndex !== undefined){
-        state.wardGroupsCleared[session.groupIndex] = true;
-        saveState();
-      }
-      const wrongIds = Object.keys(session.answered).filter(id => session.answered[id] === false);
-      if(wrongIds.length > 0){
-        wardReviewData = {wardIds: wrongIds, mode: session.kind};
-        reviewBtn.style.display = "block";
-        reviewBtn.textContent = "🎯 苦手だった区をもう一度（" + wrongIds.length + "区）";
-      }else{
-        wardReviewData = null;
-        reviewBtn.style.display = "none";
-      }
-    }else{
-      wardReviewData = null;
-      reviewBtn.style.display = "none";
-    }
   }
 
 /* =========================================================================

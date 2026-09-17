@@ -819,23 +819,25 @@
 
   const NAGOYA_MODES = ["wardKanji", "wardChizu"];
   const WARD_ROUND_LENGTH = WARD_DATA.length;
+  const WARD_NEUTRAL_COLOR = "#d6d9dd"; // 未回答の区はこのグレー一色で表示する
 
-  // opts.highlightId: この区を出題対象として強調表示する（未回答時のみ）
+  // opts.highlightId: この区を出題対象として強調表示する（未回答時のみ。塗り色はまだグレーのまま）
   // opts.answered: {wardId: true|false} その区で過去に出した答えの正誤（ラウンド中ずっと色として残る）
+  //   正解した区だけ、その区本来のカラー（ward.color）に塗り変わっていく。不正解の区は赤のまま。
   // opts.flashWrongId: 直前にタップして外した区を、一時的に赤く光らせる（answeredには入れない）
   function buildWardMapSVG(opts){
     opts = opts || {};
     const answered = opts.answered || {};
     const paths = WARD_DATA.map(ward => {
       let cls = "ward-cell";
-      let fill = ward.color;
+      let fill = WARD_NEUTRAL_COLOR;
       if(opts.flashWrongId && ward.id === opts.flashWrongId){
         cls += " ward-wrong";
         fill = "#ffb3b3";
       }else if(Object.prototype.hasOwnProperty.call(answered, ward.id)){
         if(answered[ward.id]){
           cls += " ward-answered-correct";
-          fill = "#bdeecb";
+          fill = ward.color;
         }else{
           cls += " ward-answered-wrong";
           fill = "#ffd1d1";
